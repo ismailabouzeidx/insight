@@ -16,8 +16,8 @@ int main() {
 
     float baseline = -P1.at<double>(0,3) / K.at<double>(0,0);
     float focal_length = K.at<double>(0,0);
-    float cx = K.at<double>(0,3);
-    float cy = K.at<double>(1,3);
+    float cx = K.at<double>(0,2);
+    float cy = K.at<double>(1,2);
 
     std::string data_dir = "/home/ismail/insight/data/kitti_sample/";
 
@@ -65,7 +65,7 @@ int main() {
             } 
         }
     }
-
+    std::cout << points_3D << std::endl;
     cv::Mat depth_vis;
     cv::normalize(depth_map, depth_vis, 0, 255, cv::NORM_MINMAX, CV_8U);
 
