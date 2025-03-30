@@ -1,14 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(stereo_visual_slam)
 
-# Add include directories
-include_directories(
-    ${OpenCV_INCLUDE_DIRS}
-    ${Pangolin_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-# Add sources
+# Source files
 set(SRC_FILES
     src/main.cpp
 )
@@ -16,8 +9,12 @@ set(SRC_FILES
 # Create executable
 add_executable(stereo_visual_slam ${SRC_FILES})
 
-# Link libraries
+# Link against external libraries from the base CMakeLists
 target_link_libraries(stereo_visual_slam
-    ${OpenCV_LIBS}
-    ${Pangolin_LIBS}
+    ${EXTERNAL_LIBS}  # Libraries are inherited from base
+)
+
+# Include local headers
+target_include_directories(stereo_visual_slam PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )

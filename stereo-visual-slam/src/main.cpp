@@ -1,5 +1,10 @@
 #include <iostream>
+
 #include <opencv2/opencv.hpp>                      
+
+#include <pcl/point_cloud.h>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/point_types.h>
 
 int main() {
     cv::Mat P0 = (cv::Mat_<double>(3, 4) << 
@@ -50,6 +55,9 @@ int main() {
     disparity.convertTo(disparity, CV_32F, 1.0 / 16.0);  // Convert disparity from fixed-point to floating point
 
     cv::Mat depth_map = cv::Mat(disparity.size(), CV_32F, std::numeric_limits<float>::quiet_NaN()); // prefill with nans
+    
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    
     std::vector<cv::Point3d> points_3D;
     for (int y = 0; y < disparity.rows; y++) {
         for (int x = 0; x < disparity.cols; x++) {
@@ -59,19 +67,29 @@ int main() {
                 if (Z > 0 && Z < 3000){
                     float X = (x - cx) * (Z / focal_length);
                     float Y = (y - cy) * (Z / focal_length);
+
+                    cloud->points.push_back(pcl::PointXYZ(X,Y,Z));
+                
                     points_3D.push_back({X,Y,Z});
                     depth_map.at<float>(y, x) = Z;
                 }
             } 
         }
     }
-    std::cout << points_3D << std::endl;
-    cv::Mat depth_vis;
-    cv::normalize(depth_map, depth_vis, 0, 255, cv::NORM_MINMAX, CV_8U);
+    
+    cloud->width = cloud->points.size();
+    cloud->height = 1;  // Unorganized point cloud
+    cloud->is_dense = false;
 
-    cv::namedWindow("Depth Map");
-    cv::imshow("Depth Map", depth_vis);
-    cv::waitKey(0);
-
+    // Visualize the Point Cloud
+    pcl::visualization::PCLVisualizer viewer("3D Point Cloud Viewer");
+    viewer.addPointCloud<pcl::PointXYZ>(cloud, "sample cloud");
+    viewer.setBackgroundColor(0, 0, 0);
+    viewer.addCoordinateSystem(1.0);
+    viewer.initCameraParameters();
+    
+    while (!viewer.wasStopped()) {
+        viewer.spinOnce(100);
+    }
     return 0;
 }
