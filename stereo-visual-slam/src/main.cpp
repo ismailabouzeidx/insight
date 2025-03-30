@@ -16,6 +16,8 @@ int main() {
 
     float baseline = -P1.at<double>(0,3) / K.at<double>(0,0);
     float focal_length = K.at<double>(0,0);
+    float cx = K.at<double>(0,3);
+    float cy = K.at<double>(1,3);
 
     std::string data_dir = "/home/ismail/insight/data/kitti_sample/";
 
@@ -47,19 +49,20 @@ int main() {
     stereo->compute(imgL, imgR, disparity);
     disparity.convertTo(disparity, CV_32F, 1.0 / 16.0);  // Convert disparity from fixed-point to floating point
 
-    cv::Mat depth_map = cv::Mat(disparity.size(), CV_32F);
+    cv::Mat depth_map = cv::Mat(disparity.size(), CV_32F, std::numeric_limits<float>::quiet_NaN()); // prefill with nans
     std::vector<cv::Point3d> points_3D;
     for (int y = 0; y < disparity.rows; y++) {
         for (int x = 0; x < disparity.cols; x++) {
             float d = disparity.at<float>(y, x);
-            if (d > 0 && d < 3000) {  
+            if (d > 0) {  
                 float Z = (focal_length * baseline) / d;
-                float X = 
-                depth_map.at<float>(y, x) = (focal_length * baseline) / d;
-                // points_3D.push_back})
-            } else {  
-                depth_map.at<float>(y, x) = std::numeric_limits<float>::quiet_NaN(); // NaN for invalid pixels
-            }
+                if (Z > 0 && Z < 3000){
+                    float X = (x - cx) * (Z / focal_length);
+                    float Y = (y - cy) * (Z / focal_length);
+                    points_3D.push_back({X,Y,Z});
+                    depth_map.at<float>(y, x) = Z;
+                }
+            } 
         }
     }
 
