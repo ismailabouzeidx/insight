@@ -92,8 +92,8 @@ int main() {
         stereo->compute(curr_imgL_gray, curr_imgR_gray, disparity);
         disparity.convertTo(disparity, CV_32F, 1.0 / 16.0);
 
-        cv::Mat ref = cv::Mat::eye(4, 4, CV_32F);
-
+        cv::Mat depth_map = cv::Mat::zeros(disparity.size(), CV_32FC3);
+        
         // Convert disparity to 3D points with color
         for (int y = 0; y < disparity.rows; y++) {
             for (int x = 0; x < disparity.cols; x++) {
@@ -103,7 +103,8 @@ int main() {
                     if (Z > 0 && Z < 3000) {
                         float X = (x - cx) * (Z / focal_length);
                         float Y = (y - cy) * (Z / focal_length);
-
+                        depth_map.at<cv::Vec3f>(y, x) = cv::Vec3f(X, Y, Z);
+ 
                         // Get the color of this pixel from the left image
                         cv::Vec3b color = curr_imgL.at<cv::Vec3b>(y, x);
                         uint8_t r = color[2];
@@ -144,6 +145,35 @@ int main() {
             if (matches[i][0].distance < ratio_thresh * matches[i][1].distance)
                 good_matches.push_back(matches[i][0]);
         
+        std::vector<cv::Point2f> points_prev;
+        std::vector<cv::Point2f> points_next;
+        for (auto match : good_matches){
+            cv::KeyPoint prev = k1[match.queryIdx];
+            cv::KeyPoint next = k2[match.trainIdx];
+            points_prev.push_back(prev.pt);
+            points_next.push_back(next.pt);
+
+        }
+
+        std::vector<cv::Point3f> object_points;
+        for (const auto& point : points_prev) {
+            cv::Vec3f xyz = depth_map.at<cv::Vec3f>(point.y, point.x);  // Get (X, Y, Z) as float
+            object_points.push_back(cv::Point3f(xyz[0], xyz[1], xyz[2]));  // Push correct format
+        }
+
+        cv::Mat rvec,tvec;
+        cv::solvePnPRansac(object_points, points_next,K,cv::noArray(),rvec,tvec);
+
+        cv::Mat r_mat;
+        cv::Rodrigues(rvec,r_mat);
+
+        cv::Mat Rt;
+        cv::hconcat(r_mat, tvec, Rt);  // Rt is now 3×4
+
+        // Convert to 4×4 homogeneous transformation matrix
+        cv::Mat T = cv::Mat::eye(4, 4, CV_64F);
+        Rt.copyTo(T(cv::Rect(0, 0, 4, 3)));  // Copy 3×4 into 4×4
+
     }
 
 
