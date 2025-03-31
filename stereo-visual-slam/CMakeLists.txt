@@ -9,10 +9,8 @@ set(SRC_FILES
 # Create executable
 add_executable(stereo_visual_slam ${SRC_FILES})
 
-# Link against external libraries from the base CMakeLists
-target_link_libraries(stereo_visual_slam
-    ${EXTERNAL_LIBS}  # Libraries are inherited from base
-)
+# Link against the global libraries defined in base CMakeLists.txt
+target_link_libraries(stereo_visual_slam ${EXTERNAL_LIBS})
 
 # Include local headers
 target_include_directories(stereo_visual_slam PRIVATE

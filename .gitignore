@@ -1,1 +1,3 @@
 build/
+/data/kitti_sample/image_0/*.png
+/data/kitti_sample/image_1/*.png
