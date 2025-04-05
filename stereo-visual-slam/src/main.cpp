@@ -21,6 +21,9 @@ int main() {
         return -1;
     }
 
+    pcl::visualization::PCLVisualizer viewer("Camera Pose Viewer");
+
+
     std::string data_dir = "/home/ismail/insight/data/kitti_sample/";
     std::string left_dir = data_dir + "image_0/";
     std::string right_dir = data_dir + "image_1/";
@@ -55,7 +58,11 @@ int main() {
 
     cv::Mat T_global = cv::Mat::eye(4, 4, CV_64F);
     std::vector<Eigen::Affine3f> camera_poses;
+    std::vector<Eigen::Vector4f> projected_points;
+    
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud( new pcl::PointCloud<pcl::PointXYZRGB>);
 
+    
     // 180-degree rotation around Z
     Eigen::Matrix4f rotate_z_180 = Eigen::Matrix4f::Identity();
     rotate_z_180(0, 0) = -1;
@@ -64,7 +71,7 @@ int main() {
     int img_count = 0;
 
     for (size_t i = 0; i < filenames.size() - 1; i++) {
-        if (img_count >= 3) break;  // limit frames
+        if (img_count >= 100) break;  // limit frames
         img_count++;
 
         std::string left_img_path_curr = left_dir + filenames[i];
@@ -138,7 +145,7 @@ int main() {
         }
 
         cv::Mat rvec, tvec;
-        cv::solvePnPRansac(object_points, points_next, K, cv::noArray(), rvec, tvec);
+        cv::solvePnPRansac(object_points, points_next, K, cv::noArray(), rvec, tvec); // will give T that trasnforms prev -> current
 
         cv::Mat R;
         cv::Rodrigues(rvec, R);
@@ -150,16 +157,45 @@ int main() {
         Rt.copyTo(T(cv::Rect(0, 0, 4, 3)));
         T_global = T_global * T.inv(); 
 
-
         // Convert and store the pose
         Eigen::Matrix4f T_eigen;
         cv::cv2eigen(T_global, T_eigen);
         T_eigen = rotate_z_180 * T_eigen;
         camera_poses.push_back(Eigen::Affine3f(T_eigen));
+
+        for (size_t j = 0; j < object_points.size(); ++j) {
+            const auto& pt3d = object_points[j];
+            const auto& pt2d = points_prev[j];  // 2D location in image
+
+            // Skip invalid points
+            if (pt3d.z == 0 || !cv::Rect(0, 0, curr_imgL.cols, curr_imgL.rows).contains(pt2d))
+                continue;
+
+            // Get color from image (OpenCV: BGR)
+            cv::Vec3b color = curr_imgL.at<cv::Vec3b>(cv::Point(pt2d.x, pt2d.y));
+            uint8_t b = color[0], g = color[1], r = color[2];  // convert to RGB
+
+            // Transform to global frame
+            Eigen::Vector4f p(pt3d.x, pt3d.y, pt3d.z, 1.0f);
+            Eigen::Vector4f p_world = T_eigen * p;
+            projected_points.push_back(p_world);
+
+            // Create colored point
+            pcl::PointXYZRGB pcl_point;
+            pcl_point.x = p_world[0];
+            pcl_point.y = p_world[1];
+            pcl_point.z = p_world[2];
+            pcl_point.r = r;
+            pcl_point.g = g;
+            pcl_point.b = b;
+
+            cloud->points.push_back(pcl_point);
+        }
+
     }
+    
 
     // --- VISUALIZATION ---
-    pcl::visualization::PCLVisualizer viewer("Camera Pose Viewer");
     viewer.setBackgroundColor(0, 0, 0);
     viewer.addCoordinateSystem(1.0);
 
@@ -168,6 +204,12 @@ int main() {
         viewer.addCoordinateSystem(0.3, camera_poses[i], id);
     }
 
+    cloud->width = cloud->points.size();
+    cloud->height = 1;
+    cloud->is_dense = false;
+    viewer.addPointCloud<pcl::PointXYZRGB>(cloud, "colored_cloud");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "colored_cloud");
+    
     viewer.initCameraParameters();
     while (!viewer.wasStopped()) {
         viewer.spinOnce(100);
