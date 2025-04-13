@@ -1,5 +1,7 @@
 ## Completed Features (Sparse Stereo Visual SLAM)
 
+![Sparse SLAM Snapshot](images/ss1.png)
+
 - [x] Load KITTI stereo dataset (image_0 and image_1 folders)
 - [x] Extract stereo camera intrinsics and baseline
 - [x] Compute disparity maps using StereoSGBM
@@ -13,17 +15,16 @@
 - [x] Generate sparse point cloud from triangulated 3D points
 - [x] Assign RGB color to each 3D point from image
 - [x] Visualize poses and point cloud in PCLVisualizer
+- [x] Implement **keyframe selection logic**
+  - Based on:
+    - Every N frames (e.g. 10)
+    - Too few matches (< 100)
+    - Large translation (> 1m)
+    - Large rotation (> 0.5 degrees)
 
 ## In Progress
 
-- [ ] Implement **keyframe selection logic**
-  - Based on:
-    - Every N frames (e.g., 10)
-    - Too few matches (< 300)
-    - Large translation (> 1m)
-    - Large rotation (> 4 degrees)
-- [ ] Only store point clouds and poses for keyframes
-- [ ] Refactor code out of `main()` into classes/modules:
+- [ ] Refactor code out of `main()` into classes/modules
 - [ ] Add logging or overlay for pose and keyframe status
 - [ ] Evaluate pose drift or errors (if ground truth available)
 
