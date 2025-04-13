@@ -24,7 +24,7 @@ int main() {
     pcl::visualization::PCLVisualizer viewer("Camera Pose Viewer");
 
 
-    std::string data_dir = "/home/ismail/insight/data/kitti_sample/";
+    std::string data_dir = "../data/kitti_sample/";
     std::string left_dir = data_dir + "image_0/";
     std::string right_dir = data_dir + "image_1/";
 
@@ -58,10 +58,14 @@ int main() {
 
     cv::Mat T_global = cv::Mat::eye(4, 4, CV_64F);
     std::vector<Eigen::Affine3f> camera_poses;
+
+    int frames_since_last_kf = 0;
+    
+    bool sparse = false;
+    
     std::vector<Eigen::Vector4f> projected_points;
     
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud( new pcl::PointCloud<pcl::PointXYZRGB>);
-
     
     // 180-degree rotation around Z
     Eigen::Matrix4f rotate_z_180 = Eigen::Matrix4f::Identity();
@@ -71,7 +75,7 @@ int main() {
     int img_count = 0;
 
     for (size_t i = 0; i < filenames.size() - 1; i++) {
-        if (img_count >= 100) break;  // limit frames
+        if (img_count >=50) break;  // limit frames
         img_count++;
 
         std::string left_img_path_curr = left_dir + filenames[i];
@@ -132,6 +136,8 @@ int main() {
             if (m[0].distance < ratio_thresh * m[1].distance)
                 good_matches.push_back(m[0]);
 
+        std::cout << "Found " << good_matches.size() << " matches\n";
+
         std::vector<cv::Point2f> points_prev, points_next;
         for (const auto& match : good_matches) {
             points_prev.push_back(k1[match.queryIdx].pt);
@@ -143,6 +149,7 @@ int main() {
             cv::Vec3f xyz = depth_map.at<cv::Vec3f>(pt.y, pt.x);
             object_points.push_back(cv::Point3f(xyz[0], xyz[1], xyz[2]));
         }
+        
 
         cv::Mat rvec, tvec;
         cv::solvePnPRansac(object_points, points_next, K, cv::noArray(), rvec, tvec); // will give T that trasnforms prev -> current
@@ -163,40 +170,76 @@ int main() {
         T_eigen = rotate_z_180 * T_eigen;
         camera_poses.push_back(Eigen::Affine3f(T_eigen));
 
-        for (size_t j = 0; j < object_points.size(); ++j) {
-            const auto& pt3d = object_points[j];
-            const auto& pt2d = points_prev[j];  // 2D location in image
+        // insert kf
+        if (cv::norm(tvec) > 1 || cv::norm(rvec)*(180/CV_PI) > 0.5 || good_matches.size() < 100 || frames_since_last_kf >= 10 || img_count == 1){
+            frames_since_last_kf = 0;
+            std::cerr << "Keyframe inserted - Image: " << filenames[i] << "\n";
+            if (sparse){
+                for (size_t j = 0; j < object_points.size(); ++j) {
+                    const auto& pt3d = object_points[j];
+                    const auto& pt2d = points_prev[j];  // 2D location in image
 
-            // Skip invalid points
-            if (pt3d.z == 0 || !cv::Rect(0, 0, curr_imgL.cols, curr_imgL.rows).contains(pt2d))
-                continue;
+                    // Skip invalid points
+                    if (pt3d.z == 0 || !cv::Rect(0, 0, curr_imgL.cols, curr_imgL.rows).contains(pt2d))
+                        continue;
 
-            // Get color from image (OpenCV: BGR)
-            cv::Vec3b color = curr_imgL.at<cv::Vec3b>(cv::Point(pt2d.x, pt2d.y));
-            uint8_t b = color[0], g = color[1], r = color[2];  // convert to RGB
+                    // Get color from image (OpenCV: BGR)
+                    cv::Vec3b color = curr_imgL.at<cv::Vec3b>(cv::Point(pt2d.x, pt2d.y));
+                    uint8_t b = color[0], g = color[1], r = color[2];  // convert to RGB
 
-            // Transform to global frame
-            Eigen::Vector4f p(pt3d.x, pt3d.y, pt3d.z, 1.0f);
-            Eigen::Vector4f p_world = T_eigen * p;
-            projected_points.push_back(p_world);
+                    // Transform to global frame
+                    Eigen::Vector4f p(pt3d.x, pt3d.y, pt3d.z, 1.0f);
+                    Eigen::Vector4f p_world = T_eigen * p;
+                    projected_points.push_back(p_world);
 
-            // Create colored point
-            pcl::PointXYZRGB pcl_point;
-            pcl_point.x = p_world[0];
-            pcl_point.y = p_world[1];
-            pcl_point.z = p_world[2];
-            pcl_point.r = r;
-            pcl_point.g = g;
-            pcl_point.b = b;
+                    // Create colored point
+                    pcl::PointXYZRGB pcl_point;
+                    pcl_point.x = p_world[0];
+                    pcl_point.y = p_world[1];
+                    pcl_point.z = p_world[2];
+                    pcl_point.r = r;
+                    pcl_point.g = g;
+                    pcl_point.b = b;
 
-            cloud->points.push_back(pcl_point);
+                    cloud->points.push_back(pcl_point);
+                }
+            }
+            else {
+                for (int y = 0; y < depth_map.rows; ++y) {
+                    for (int x = 0; x < depth_map.cols; ++x) {
+                        cv::Vec3f pt3d = depth_map.at<cv::Vec3f>(y, x);
+                        if (pt3d == cv::Vec3f(0, 0, 0)) continue;
+
+                        // Get color from the left image
+                        cv::Vec3b color = curr_imgL.at<cv::Vec3b>(y, x);
+                        uint8_t r = color[2], g = color[1], b = color[0];
+
+                        // Transform point to world
+                        Eigen::Vector4f p(pt3d[0], pt3d[1], pt3d[2], 1.0f);
+                        Eigen::Vector4f p_world = T_eigen * p;
+
+                        pcl::PointXYZRGB pcl_point;
+                        pcl_point.x = p_world[0];
+                        pcl_point.y = p_world[1];
+                        pcl_point.z = p_world[2];
+                        pcl_point.r = r;
+                        pcl_point.g = g;
+                        pcl_point.b = b;
+
+                        cloud->points.push_back(pcl_point);
+                    }
+                }
+            }
+
         }
+
+        frames_since_last_kf++;
 
     }
     
 
     // --- VISUALIZATION ---
-    viewer.setBackgroundColor(0, 0, 0);
+    viewer.setBackgroundColor(255, 255, 255);
     viewer.addCoordinateSystem(1.0);
 
     for (size_t i = 0; i < camera_poses.size(); ++i) {
