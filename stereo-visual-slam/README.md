@@ -1,6 +1,6 @@
 ## Completed Features (Sparse Stereo Visual SLAM)
 
-![Sparse SLAM Snapshot](images/ss1.png)
+![Sparse SLAM Snapshot](../images/ss1.png)
 
 - [x] Load KITTI stereo dataset (image_0 and image_1 folders)
 - [x] Extract stereo camera intrinsics and baseline
