@@ -1,4 +1,4 @@
-## Completed Features (Sparse Stereo Visual SLAM)
+## Completed Features (Stereo Visual SLAM)
 
 ![Sparse SLAM Snapshot](../images/ss1.png)
 
@@ -12,7 +12,7 @@
 - [x] Estimate pose (rotation and translation) between frames using solvePnPRansac
 - [x] Accumulate global pose via transformation matrix
 - [x] Convert camera poses to Eigen format for visualization
-- [x] Generate sparse point cloud from triangulated 3D points
+- [x] Generate point cloud from triangulated 3D points
 - [x] Assign RGB color to each 3D point from image
 - [x] Visualize poses and point cloud in PCLVisualizer
 - [x] Implement **keyframe selection logic**
