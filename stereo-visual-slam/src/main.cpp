@@ -173,7 +173,7 @@ int main() {
         // insert kf
         if (cv::norm(tvec) > 1 || cv::norm(rvec)*(180/CV_PI) > 0.5 || good_matches.size() < 100 || frames_since_last_kf >= 10 || img_count == 1){
             frames_since_last_kf = 0;
-            std::cerr << "Keyframe inserted - Image: " << filenames[i] << "\n";
+            std::cout << "Keyframe inserted - Image: " << filenames[i] << "\n";
             if (sparse){
                 for (size_t j = 0; j < object_points.size(); ++j) {
                     const auto& pt3d = object_points[j];
