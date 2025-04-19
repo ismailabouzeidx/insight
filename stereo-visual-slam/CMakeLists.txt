@@ -4,6 +4,8 @@ project(stereo_visual_slam)
 # Source files
 set(SRC_FILES
     src/main.cpp
+    src/camera.cpp
+    src/stereo.cpp
 )
 
 # Create executable
