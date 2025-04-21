@@ -15,6 +15,10 @@
 #include <X11/Xlib.h>
 namespace fs = std::filesystem;
 
+#include "camera.hpp"
+#include "stereo.hpp"
+
+
 int main() {
     if (!XInitThreads()) {
         std::cerr << "Failed to initialize X11 multi-threading support!" << std::endl;
@@ -40,16 +44,17 @@ int main() {
         0, 718.856, 185.2157, 0,
         0, 0, 1, 0);
 
-    cv::Mat K = P0(cv::Range(0, 3), cv::Range(0, 3)).clone();
     cv::Mat P1 = (cv::Mat_<double>(3, 4) <<
         718.856, 0, 607.1928, -386.1448,
         0, 718.856, 185.2157, 0,
         0, 0, 1, 0);
 
+    cv::Mat K = P0(cv::Range(0, 3), cv::Range(0, 3)).clone();
+    Camera left_camera(K);
+    Camera right_camera(K);
     float baseline = -P1.at<double>(0, 3) / K.at<double>(0, 0);
-    float focal_length = K.at<double>(0, 0);
-    float cx = K.at<double>(0, 2);
-    float cy = K.at<double>(1, 2);
+
+    Stereo stereo_rig(left_camera, right_camera, baseline);
 
     cv::Ptr<cv::StereoSGBM> stereo = cv::StereoSGBM::create(
         0, 192, 5, 8 * 3 * 5 * 5, 32 * 3 * 5 * 5,
@@ -99,24 +104,13 @@ int main() {
         cv::cvtColor(curr_imgL, curr_imgL_gray, cv::COLOR_BGR2GRAY);
         cv::cvtColor(curr_imgR, curr_imgR_gray, cv::COLOR_BGR2GRAY);
 
+        stereo_rig.set_stereo_matcher(stereo);
+        
         cv::Mat disparity;
-        stereo->compute(curr_imgL_gray, curr_imgR_gray, disparity);
-        disparity.convertTo(disparity, CV_32F, 1.0 / 16.0);
+        stereo_rig.compute_disparity_map(curr_imgL_gray,curr_imgR_gray,disparity);
 
-        cv::Mat depth_map = cv::Mat::zeros(disparity.size(), CV_32FC3);
-        for (int y = 0; y < disparity.rows; y++) {
-            for (int x = 0; x < disparity.cols; x++) {
-                float d = disparity.at<float>(y, x);
-                if (d > 1.0f) {
-                    float Z = (focal_length * baseline) / d;
-                    if (Z > 0 && Z < 3000) {
-                        float X = (x - cx) * (Z / focal_length);
-                        float Y = (y - cy) * (Z / focal_length);
-                        depth_map.at<cv::Vec3f>(y, x) = cv::Vec3f(X, Y, Z);
-                    }
-                }
-            }
-        }
+        cv::Mat depth_map;
+        stereo_rig.compute_depth_map(disparity, depth_map);
 
         // SIFT + FLANN matching
         cv::Ptr<cv::SIFT> sift = cv::SIFT::create(0, 3, 0.01);
@@ -138,21 +132,31 @@ int main() {
 
         std::cout << "Found " << good_matches.size() << " matches\n";
 
+        
+
         std::vector<cv::Point2f> points_prev, points_next;
         for (const auto& match : good_matches) {
             points_prev.push_back(k1[match.queryIdx].pt);
             points_next.push_back(k2[match.trainIdx].pt);
         }
 
+        cv::Mat mask;
+        cv::findHomography(points_prev, points_next, mask);
+
         std::vector<cv::Point3f> object_points;
-        for (const auto& pt : points_prev) {
-            cv::Vec3f xyz = depth_map.at<cv::Vec3f>(pt.y, pt.x);
-            object_points.push_back(cv::Point3f(xyz[0], xyz[1], xyz[2]));
+        std::vector<cv::Point2f> filtered_points_next;
+        for (size_t j = 0; j < points_prev.size(); ++j) {
+            if (mask.at<uchar>(j)) {
+                const auto& pt = points_prev[j];
+                cv::Vec3f xyz = depth_map.at<cv::Vec3f>(pt.y, pt.x);
+                object_points.push_back(cv::Point3f(xyz[0], xyz[1], xyz[2]));
+                filtered_points_next.push_back(points_next[j]);
+            }
         }
-        
+
 
         cv::Mat rvec, tvec;
-        cv::solvePnPRansac(object_points, points_next, K, cv::noArray(), rvec, tvec); // will give T that trasnforms prev -> current
+        cv::solvePnPRansac(object_points, filtered_points_next, K, cv::noArray(), rvec, tvec); // will give T that trasnforms prev -> current
 
         cv::Mat R;
         cv::Rodrigues(rvec, R);
