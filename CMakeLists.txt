@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find OpenCV
-find_package(OpenCV 4.10.0 REQUIRED)
+find_package(OpenCV REQUIRED)
 
 # Find PCL
 find_package(PCL REQUIRED)

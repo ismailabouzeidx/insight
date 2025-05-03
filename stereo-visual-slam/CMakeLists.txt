@@ -1,12 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(stereo_visual_slam)
 
-# Source files
-set(SRC_FILES
-    src/main.cpp
-    src/camera.cpp
-    src/stereo.cpp
-)
+# Automatically find all .cpp files in src/
+file(GLOB SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
 # Create executable
 add_executable(stereo_visual_slam ${SRC_FILES})
