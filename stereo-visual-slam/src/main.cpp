@@ -47,10 +47,8 @@ int main() {
     float baseline = -P1.at<double>(0, 3) / K.at<double>(0, 0);
 
     Stereo stereo_rig(left_camera, right_camera, baseline);
-    // stereo_rig.set_stereo_matcher(cv::StereoSGBM::create(
-    //     0, 192, 5, 8 * 3 * 5 * 5, 32 * 3 * 5 * 5,
-    //     1, 63, 15, 100, 2, cv::StereoSGBM::MODE_HH
-    // ));
+
+
     int min_disparity     = 0;      // Minimum possible disparity value
     int num_disparities   = 128;    // Must be divisible by 16; max disparity range
     int block_size        = 7;      // Size of the matching block (odd number >= 3)
@@ -62,7 +60,6 @@ int main() {
     int speckle_window    = 100;    // Region size to filter small noise blobs
     int speckle_range     = 2;      // Max disparity variation within a speckle region
     int mode              = cv::StereoSGBM::MODE_SGBM_3WAY;  // Faster with similar accuracy to HH
-    
     stereo_rig.set_stereo_matcher(cv::StereoSGBM::create(
         min_disparity,
         num_disparities,
@@ -93,9 +90,6 @@ int main() {
     cv::Mat T_global = cv::Mat::eye(4, 4, CV_64F);
     std::vector<Eigen::Affine3f> camera_poses;
     camera_poses.emplace_back(Eigen::Affine3f::Identity());
-
-    Eigen::Matrix4f rotate_z_180 = Eigen::Matrix4f::Identity();
-    // rotate_z_180(0, 0) = -1; rotate_z_180(1, 1) = -1;
 
     int img_count = 0;
     int frames_since_last_kf = 0;
