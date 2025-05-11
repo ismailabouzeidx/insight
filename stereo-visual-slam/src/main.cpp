@@ -151,10 +151,8 @@ int main() {
         }
 
         T_global = T_global * T.inv();
-
         Eigen::Matrix4f T_eigen;
         cv::cv2eigen(T_global, T_eigen);
-        // T_eigen = T_eigen;
         camera_poses.emplace_back(T_eigen);
 
         if (kf_mgr.should_insert_keyframe(T, good_matches.size(), frames_since_last_kf, i == 0)) {
@@ -164,10 +162,8 @@ int main() {
             map_manager.add_points(curr_imgL, depth_map, object_points, points_prev, T_eigen);
         }
 
-
         frames_since_last_kf++;
     }
-
     evaluator.save_pose(pose_filename, camera_poses);
 
     std::vector<Eigen::Affine3f> gt_poses;
@@ -185,11 +181,10 @@ int main() {
     cloud->height = 1;
     cloud->is_dense = false;
 
+    viz.set_gt_poses(gt_poses);
     viz.set_camera_poses(camera_poses);
-    viz.set_gt_poses(gt_poses);  // or original poses if you don't align
     viz.set_point_cloud(cloud);
     viz.show();
   
-    
     return 0;
 }
