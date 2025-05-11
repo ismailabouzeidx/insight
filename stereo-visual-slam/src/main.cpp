@@ -22,7 +22,7 @@ namespace fs = std::filesystem;
 #include "visualizer.hpp"
 #include "pose_evaluator.hpp"
 
-int main() {
+int main(int argc, char* argv[]) {
     if (!XInitThreads()) {
         std::cerr << "Failed to initialize X11 multi-threading support!" << std::endl;
         return -1;
@@ -92,10 +92,11 @@ int main() {
     camera_poses.emplace_back(Eigen::Affine3f::Identity());
 
     int img_count = 0;
+    int image_limit = std::stoi(argv[1]);
     int frames_since_last_kf = 0;
 
     for (int i = 0; i < frame_manager.total_frames() - 1; ++i) {
-        if (img_count >= 1000) break;
+        if (img_count >= image_limit) break;
         img_count++;
 
         cv::Mat curr_imgL, curr_imgR, next_imgL, next_imgR;
@@ -138,12 +139,12 @@ int main() {
             }
         }
 
-        cv::Mat T;
+        cv::Mat T; // from previous frame to the current frame (check pinhole camera equations and i/o which is analogous to how the regular pinhole model trasnforms 3D points from world->image)
         if (!pose_estimator.estimate_pose(object_points, filtered_points_next, K, T, mask)) {
             std::cerr << "Skipping frame due to failed pose estimation.\n";
             continue;
         }
-
+        std::cout << T << std::endl;
         T_global = T_global * T.inv();
         Eigen::Matrix4f T_eigen;
         cv::cv2eigen(T_global, T_eigen);
@@ -177,7 +178,7 @@ int main() {
 
     viz.set_gt_poses(gt_poses);
     viz.set_camera_poses(camera_poses);
-    viz.set_point_cloud(cloud);
+    // viz.set_point_cloud(cloud);
     viz.show();
   
     return 0;
