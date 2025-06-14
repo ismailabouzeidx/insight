@@ -2,15 +2,17 @@
 #include <vector>
 #include <algorithm>
 #include <filesystem>
+namespace fs = std::filesystem;
 
-#include <Eigen/Dense>                     // MUST be before OpenCV
+#include <Eigen/Dense>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
 
 #include <pcl/visualization/pcl_visualizer.h>
 
 #include <X11/Xlib.h>
-namespace fs = std::filesystem;
+
+
 
 #include "camera.hpp"
 #include "stereo.hpp"
@@ -48,32 +50,6 @@ int main(int argc, char* argv[]) {
 
     Stereo stereo_rig(left_camera, right_camera, baseline);
 
-
-    int min_disparity     = 0;      // Minimum possible disparity value
-    int num_disparities   = 128;    // Must be divisible by 16; max disparity range
-    int block_size        = 7;      // Size of the matching block (odd number >= 3)
-    int p1                = 8 * 3 * block_size * block_size;   // Smoothness penalty for small disparity changes
-    int p2                = 32 * 3 * block_size * block_size;  // Smoothness penalty for large disparity changes
-    int disp12_max_diff   = 1;      // Max allowed diff in left-right disparity check
-    int pre_filter_cap    = 31;     // Truncation value for prefiltered image pixels
-    int uniqueness_ratio  = 10;     // Margin in best vs second-best match (higher = stricter)
-    int speckle_window    = 100;    // Region size to filter small noise blobs
-    int speckle_range     = 2;      // Max disparity variation within a speckle region
-    int mode              = cv::StereoSGBM::MODE_SGBM_3WAY;  // Faster with similar accuracy to HH
-    stereo_rig.set_stereo_matcher(cv::StereoSGBM::create(
-        min_disparity,
-        num_disparities,
-        block_size,
-        p1,
-        p2,
-        disp12_max_diff,
-        pre_filter_cap,
-        uniqueness_ratio,
-        speckle_window,
-        speckle_range,
-        mode
-    ));
-    
     FeatureManager feature_mgr(FeatureManager::SIFT, FeatureManager::FLANN, 0.3f);
     PoseEstimator pose_estimator;
     KeyframeManager kf_mgr(1.0, 0.5, 10, 100);
@@ -108,68 +84,97 @@ int main(int argc, char* argv[]) {
         std::cout << "Processing frame: " << frame_manager.get_filename(i)
                   << " → " << frame_manager.get_filename(i + 1) << std::endl;
 
-        cv::Mat curr_imgL_gray, curr_imgR_gray;
-        cv::cvtColor(curr_imgL, curr_imgL_gray, cv::COLOR_BGR2GRAY);
-        cv::cvtColor(curr_imgR, curr_imgR_gray, cv::COLOR_BGR2GRAY);
+        // Stereo triangulation (at time t)
+        std::vector<cv::KeyPoint> kL, kR;
+        cv::Mat dL, dR;
+        feature_mgr.extract_features(curr_imgL, kL, dL);
+        feature_mgr.extract_features(curr_imgR, kR, dR);
 
-        cv::Mat disparity, depth_map;
-        stereo_rig.compute_disparity_map(curr_imgL_gray, curr_imgR_gray, disparity);
-        stereo_rig.compute_depth_map(disparity, depth_map);
+        std::vector<cv::DMatch> stereo_matches;
+        std::vector<cv::Point2f> pts_L, pts_R;
+        feature_mgr.match_features(dL, dR, stereo_matches, kL, kR, pts_L, pts_R);
 
-        std::vector<cv::KeyPoint> k1, k2;
-        cv::Mat d1, d2;
-        feature_mgr.extract_features(curr_imgL, k1, d1);
-        feature_mgr.extract_features(next_imgL, k2, d2);
-
-        std::vector<cv::DMatch> good_matches;
-        std::vector<cv::Point2f> points_prev, points_next;
-        feature_mgr.match_features(d1, d2, good_matches, k1, k2, points_prev, points_next);
-
-        cv::Mat mask;
-        cv::findHomography(points_prev, points_next, mask);
+        cv::Mat pts4D;
+        cv::triangulatePoints(P0, P1, pts_L, pts_R, pts4D);
 
         std::vector<cv::Point3f> object_points;
-        std::vector<cv::Point2f> filtered_points_next;
-        for (size_t j = 0; j < points_prev.size(); ++j) {
-            if (mask.at<uchar>(j)) {
-                const auto& pt = points_prev[j];
-                cv::Vec3f xyz = depth_map.at<cv::Vec3f>(pt.y, pt.x);
-                object_points.emplace_back(xyz[0], xyz[1], xyz[2]);
-                filtered_points_next.push_back(points_next[j]);
-            }
+        std::vector<cv::Point2f> ref_2d_points;
+        for (int j = 0; j < pts4D.cols; ++j) {
+            cv::Mat x = pts4D.col(j);
+            x /= x.at<float>(3);
+            object_points.emplace_back(x.at<float>(0), x.at<float>(1), x.at<float>(2));
+            ref_2d_points.push_back(pts_L[j]);
         }
 
-        cv::Mat T; // from previous frame to the current frame (check pinhole camera equations and i/o which is analogous to how the regular pinhole model trasnforms 3D points from world->image)
-        if (!pose_estimator.estimate_pose(object_points, filtered_points_next, K, T, mask)) {
+        // Track using optical flow
+        std::vector<cv::Point2f> tracked_points;
+        std::vector<uchar> status;
+        std::vector<float> err;
+        cv::Mat curr_gray, next_gray;
+        cv::cvtColor(curr_imgL, curr_gray, cv::COLOR_BGR2GRAY);
+        cv::cvtColor(next_imgL, next_gray, cv::COLOR_BGR2GRAY);
+        cv::calcOpticalFlowPyrLK(curr_gray, next_gray, ref_2d_points, tracked_points, status, err,
+                                 cv::Size(21, 21), 3, cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30, 0.01), 0, 1e-4);
+
+        std::vector<cv::Point2f> ref_2d_valid, tracked_valid;
+        std::vector<cv::Point3f> object_points_valid;
+        for (size_t j = 0; j < status.size(); ++j) {
+            if (status[j]) {
+                ref_2d_valid.push_back(ref_2d_points[j]);
+                tracked_valid.push_back(tracked_points[j]);
+                object_points_valid.push_back(object_points[j]);
+            }
+        }
+        
+        if (ref_2d_valid.size() < 8) {
+            std::cerr << "Too few tracked points to compute Essential Matrix. Skipping frame.\n";
+            continue;
+        }
+        
+        cv::Mat inlier_mask;
+        cv::Mat E = cv::findEssentialMat(ref_2d_valid, tracked_valid, K, cv::RANSAC, 0.999, 1.0, inlier_mask);
+        
+        // Filter again using inlier_mask from Essential Matrix
+        std::vector<cv::Point3f> filtered_3d;
+        std::vector<cv::Point2f> filtered_2d;
+        for (int j = 0; j < inlier_mask.rows; ++j) {
+            if (inlier_mask.at<uchar>(j)) {
+                filtered_3d.push_back(object_points_valid[j]);
+                filtered_2d.push_back(tracked_valid[j]);
+            }
+        }
+                                 
+                                 
+        cv::Mat T, mask;
+        if (!pose_estimator.estimate_pose(filtered_3d, filtered_2d, K, T, mask)) {
             std::cerr << "Skipping frame due to failed pose estimation.\n";
             continue;
         }
-        std::cout << T << std::endl;
+
+        // std::cout << T << std::endl;
         T_global = T_global * T.inv();
         Eigen::Matrix4f T_eigen;
         cv::cv2eigen(T_global, T_eigen);
         camera_poses.emplace_back(T_eigen);
 
-        if (kf_mgr.should_insert_keyframe(T, good_matches.size(), frames_since_last_kf, i == 0)) {
+        if (kf_mgr.should_insert_keyframe(T, filtered_3d.size(), frames_since_last_kf, i == 0)) {
             frames_since_last_kf = 0;
             std::cout << "Keyframe inserted - Image: " << frame_manager.get_filename(i) << "\n";
-
-            map_manager.add_points(curr_imgL, depth_map, object_points, points_prev, T_eigen);
+            map_manager.add_points(curr_imgL, pts4D, object_points, ref_2d_points, T_eigen);
         }
 
         frames_since_last_kf++;
     }
+
     evaluator.save_pose(pose_filename, camera_poses);
 
     std::vector<Eigen::Affine3f> gt_poses;
     evaluator.load_pose("../poses/00.txt", gt_poses);
 
-    // Resize GT to match your estimated poses
     if (gt_poses.size() > camera_poses.size())
         gt_poses.resize(camera_poses.size());
     else
         camera_poses.resize(gt_poses.size());
-
 
     auto cloud = map_manager.get_cloud();
     cloud->width = cloud->points.size();
@@ -178,8 +183,8 @@ int main(int argc, char* argv[]) {
 
     viz.set_gt_poses(gt_poses);
     viz.set_camera_poses(camera_poses);
-    // viz.set_point_cloud(cloud);
+    viz.set_point_cloud(cloud);
     viz.show();
-  
+
     return 0;
 }
