@@ -16,11 +16,15 @@ add_definitions(${PCL_DEFINITIONS})
 find_package(VTK REQUIRED)
 include(${VTK_USE_FILE})
 
+# Find Ceres Solver
+find_package(Ceres REQUIRED)
+
 # Pass include directories and libraries to all subdirectories
 include_directories(
     ${OpenCV_INCLUDE_DIRS}
     ${PCL_INCLUDE_DIRS}
     ${VTK_INCLUDE_DIRS}
+    ${CERES_INCLUDE_DIRS}
 )
 
 # Pass libraries down to subdirectories
@@ -28,6 +32,7 @@ set(EXTERNAL_LIBS
     ${OpenCV_LIBS}
     ${PCL_LIBRARIES}
     ${VTK_LIBRARIES}
+    ${CERES_LIBRARIES}
 )
 
 # Include the `stereo-visual-slam` subdirectory
