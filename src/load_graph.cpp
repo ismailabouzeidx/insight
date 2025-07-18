@@ -42,7 +42,18 @@ void load_graph(Pipeline& pipeline, const std::string& graph_path) {
         } else if (type == "Grayscale") {
             block = std::make_shared<Grayscale>();
         } else if (type == "Canny Edge") {
-            block = std::make_shared<Canny>();
+            float threshold1 = 100.0f;  // default values
+            float threshold2 = 200.0f;
+
+            if (node.contains("params")) {
+                const auto& params = node["params"];
+                if (params.contains("threshold1"))
+                    threshold1 = params["threshold1"].get<float>();
+                if (params.contains("threshold2"))
+                    threshold2 = params["threshold2"].get<float>();
+            }
+
+            block = std::make_shared<Canny>(threshold1, threshold2);
         } else {
             throw std::runtime_error("Unknown block type: " + type);
         }
