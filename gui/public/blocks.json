@@ -1,0 +1,33 @@
+[
+  {
+    "label": "Image Input"
+  },
+  {
+    "label": "Grayscale"
+  },
+  {
+    "label": "Canny Edge",
+    "params": [
+      {
+        "default": 50.0,
+        "name": "threshold1",
+        "type": "float"
+      },
+      {
+        "default": 150.0,
+        "name": "threshold2",
+        "type": "float"
+      }
+    ]
+  },
+  {
+    "label": "Blur",
+    "params": [
+      {
+        "default": 3.0,
+        "name": "ksize",
+        "type": "int"
+      }
+    ]
+  }
+]

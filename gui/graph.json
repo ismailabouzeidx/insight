@@ -1,0 +1,16 @@
+{
+  "input_image": "car.jpg",
+  "input_dir": "/home/ismo/controls_challenge/imgs",
+  "nodes": [
+    {
+      "id": "44ed6e78-cccc-4fa6-bd34-1dfdd338c28b",
+      "type": "Image Input"
+    }
+  ],
+  "edges": [
+    {
+      "source": "44ed6e78-cccc-4fa6-bd34-1dfdd338c28b",
+      "target": "66af515d-0efc-4b2c-8bf5-1031509c7ab2"
+    }
+  ]
+}

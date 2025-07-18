@@ -1,0 +1,4 @@
+pybind11
+Jinja2          # For code generation templates
+fastapi         # If you plan to serve engine locally later
+uvicorn         # FastAPI dev server
