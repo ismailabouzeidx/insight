@@ -1,20 +1,32 @@
 # Ignore CMake build directory
 /build/
 
-# Ignore CMake files
+# Ignore GUI output and cache folders
+/gui/public/run/
+/gui/public/blocks.json
+
+# Ignore CMake generated files
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
 
-# Ignore compiled objects
+# Ignore compiled object files and binaries
 *.o
 *.obj
 *.so
 *.dll
 *.exe
 *.out
+*.json
 
-# Ignore logs and temp files
+# Ignore logs and temporary files
 *.log
 *.tmp
+
+# Ignore editor and OS-specific files
+*.swp
+*.DS_Store
+*.idea/
+.vscode/
+Thumbs.db
