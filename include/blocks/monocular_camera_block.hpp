@@ -8,7 +8,6 @@
 #include <filesystem>
 
 enum class SequenceMode {
-    ON_CONNECT,
     AUTO_PLAY,
     MANUAL
 };
@@ -29,7 +28,7 @@ private:
     bool has_started = false;
     bool advance_requested = false;
 
-    SequenceMode mode = SequenceMode::ON_CONNECT;
+    SequenceMode mode = SequenceMode::MANUAL;
 
     cv::Mat current_image;
     std::shared_ptr<data_port<cv::Mat>> output;

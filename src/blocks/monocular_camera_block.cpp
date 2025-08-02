@@ -52,18 +52,14 @@ void monocular_camera_block::load_next_frame() {
 }
 
 void monocular_camera_block::process(const std::vector<link_t>& links) {
-    bool is_connected = is_port_connected(0, links);
-
-    if (mode == SequenceMode::ON_CONNECT && !has_started && is_connected) {
-        load_next_frame();
-        has_started = true;
-    } else if (mode == SequenceMode::AUTO_PLAY) {
+    if (mode == SequenceMode::AUTO_PLAY) {
         load_next_frame();
     } else if (mode == SequenceMode::MANUAL && advance_requested) {
         load_next_frame();
         advance_requested = false;
     }
 }
+
 
 void monocular_camera_block::draw_ui() {
     ImNodes::BeginNode(id);
@@ -92,7 +88,7 @@ void monocular_camera_block::draw_ui() {
     }
 
     // Mode selector
-    const char* modes[] = {"On Connect", "Auto", "Manual"};
+    const char* modes[] = {"Auto", "Manual"};
     ImGui::Combo("Mode", (int*)&mode, modes, IM_ARRAYSIZE(modes));
 
     if (index < images.size()) {
