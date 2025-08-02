@@ -39,8 +39,7 @@ bool monocular_camera_block::is_port_connected(int port_index, const std::vector
     return false;
 }
 
-void monocular_camera_block::process(const std::vector<link_t>& links) {
-    if (!is_port_connected(0, links)) return;
+void monocular_camera_block::load_next_frame() {
     if (index >= images.size()) return;
 
     current_image = cv::imread(images[index], cv::IMREAD_COLOR);
@@ -52,9 +51,22 @@ void monocular_camera_block::process(const std::vector<link_t>& links) {
     }
 }
 
+void monocular_camera_block::process(const std::vector<link_t>& links) {
+    bool is_connected = is_port_connected(0, links);
+
+    if (mode == SequenceMode::ON_CONNECT && !has_started && is_connected) {
+        load_next_frame();
+        has_started = true;
+    } else if (mode == SequenceMode::AUTO_PLAY) {
+        load_next_frame();
+    } else if (mode == SequenceMode::MANUAL && advance_requested) {
+        load_next_frame();
+        advance_requested = false;
+    }
+}
+
 void monocular_camera_block::draw_ui() {
     ImNodes::BeginNode(id);
-
     ImNodes::BeginNodeTitleBar();
     ImGui::TextUnformatted(name.c_str());
     ImNodes::EndNodeTitleBar();
@@ -63,6 +75,7 @@ void monocular_camera_block::draw_ui() {
     ImGui::Text("Image");
     ImNodes::EndOutputAttribute();
 
+    // Folder input
     static char folder_buf[256];
     static bool initialized = false;
     if (!initialized) {
@@ -71,12 +84,16 @@ void monocular_camera_block::draw_ui() {
     }
 
     ImGui::InputText("Folder", folder_buf, IM_ARRAYSIZE(folder_buf));
-
     if (ImGui::Button("Set Folder")) {
         folder = std::string(folder_buf);
         load_image_list();
         index = 0;
+        has_started = false;
     }
+
+    // Mode selector
+    const char* modes[] = {"On Connect", "Auto", "Manual"};
+    ImGui::Combo("Mode", (int*)&mode, modes, IM_ARRAYSIZE(modes));
 
     if (index < images.size()) {
         ImGui::Text("Current: %s", fs::path(images[index]).filename().c_str());
@@ -85,16 +102,23 @@ void monocular_camera_block::draw_ui() {
     }
 
     if (ImGui::Button("Load Next")) {
-        process(std::vector<link_t>{});
+        advance_requested = true;
+    }
+    
+    if (ImGui::Button("Reset")) {
+        index = 0;
+        has_started = false;
+        current_image.release();
+        output->set(cv::Mat());
     }
 
     ImNodes::EndNode();
 }
 
-std::vector<std::shared_ptr<void>> monocular_camera_block::get_input_ports() {
+std::vector<std::shared_ptr<base_port>> monocular_camera_block::get_input_ports() {
     return {};  // No inputs
 }
 
-std::vector<std::shared_ptr<void>> monocular_camera_block::get_output_ports() {
+std::vector<std::shared_ptr<base_port>> monocular_camera_block::get_output_ports() {
     return {output};
 }

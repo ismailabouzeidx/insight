@@ -34,67 +34,59 @@ void block_graph::process_all(const std::vector<link_t>& links) {
         b->process(links);
 
     for (const auto& link : links) {
-
         int from_node_id = link.start_attr / 10;
         int to_node_id = link.end_attr / 10;
-
-        int from_port_index = link.start_attr % 10; 
-        int to_port_index = link.end_attr % 10; 
+        int from_port_index = link.start_attr % 10;
+        int to_port_index = link.end_attr % 10;
 
         std::cout << "Processing link from node " << from_node_id << " port " << from_port_index
                   << " to node " << to_node_id << " port " << to_port_index << std::endl;
 
         auto from_block = std::find_if(blocks_.begin(), blocks_.end(),
             [from_node_id](const std::shared_ptr<block>& b) { return b->id == from_node_id; });
-
         auto to_block = std::find_if(blocks_.begin(), blocks_.end(),
             [to_node_id](const std::shared_ptr<block>& b) { return b->id == to_node_id; });
 
-        if (from_block == blocks_.end()) {
-            std::cout << "From block with id " << from_node_id << " not found." << std::endl;
-            continue;
-        }
-        if (to_block == blocks_.end()) {
-            std::cout << "To block with id " << to_node_id << " not found." << std::endl;
+        if (from_block == blocks_.end() || to_block == blocks_.end()) {
+            std::cerr << "Invalid node reference in link.\n";
             continue;
         }
 
         auto from_ports = (*from_block)->get_output_ports();
         auto to_ports = (*to_block)->get_input_ports();
 
-        if (from_port_index >= from_ports.size()) {
-            std::cout << "From port index " << from_port_index << " out of range." << std::endl;
-            continue;
-        }
-        if (to_port_index >= to_ports.size()) {
-            std::cout << "To port index " << to_port_index << " out of range." << std::endl;
+        if (from_port_index >= from_ports.size() || to_port_index >= to_ports.size()) {
+            std::cerr << "Port index out of range.\n";
             continue;
         }
 
-        auto from_port = std::static_pointer_cast<data_port<cv::Mat>>(from_ports[from_port_index]);
-        auto to_port = std::static_pointer_cast<data_port<cv::Mat>>(to_ports[to_port_index]);
+        auto& from = from_ports[from_port_index];
+        auto& to = to_ports[to_port_index];
 
-        if (!from_port) {
-            std::cout << "From port cast failed." << std::endl;
-            continue;
+        // Handle image (cv::Mat)
+        if (auto from_img = std::dynamic_pointer_cast<data_port<cv::Mat>>(from)) {
+            if (auto to_img = std::dynamic_pointer_cast<data_port<cv::Mat>>(to)) {
+                if (!from_img->data->empty()) {
+                    *to_img->data = *from_img->data;
+                    std::cout << "Copied cv::Mat data successfully.\n";
+                }
+                continue;
+            }
         }
-        if (!to_port) {
-            std::cout << "To port cast failed." << std::endl;
-            continue;
+        std::cout << "Attempting keypoint transfer..." << std::endl;
+        std::cout << "From port type: " << typeid(*from.get()).name() << std::endl;
+        std::cout << "To port type: "   << typeid(*to.get()).name()   << std::endl;
+
+        // Handle keypoints (vector<KeyPoint>)
+        if (auto from_kp = std::dynamic_pointer_cast<data_port<std::vector<cv::KeyPoint>>>(from)) {
+            if (auto to_kp = std::dynamic_pointer_cast<data_port<std::vector<cv::KeyPoint>>>(to)) {
+                *to_kp->data = *from_kp->data;
+                std::cout << "Copied keypoints successfully.\n";
+                continue;
+            }
         }
 
-        if (!from_port->data) {
-            std::cout << "From port data is null." << std::endl;
-            continue;
-        }
 
-        std::cout << "From port data empty? " << from_port->data->empty() << std::endl;
-
-        if (!from_port->data->empty()) {
-            *to_port->data = *from_port->data;
-            std::cout << "Copied image data successfully." << std::endl;
-        } else {
-            std::cout << "No image data to copy (empty input)." << std::endl;
-        }
+        std::cerr << "Unsupported port type or mismatched types.\n";
     }
 }

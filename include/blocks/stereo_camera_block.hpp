@@ -15,8 +15,8 @@ public:
     void process(const std::vector<link_t>& links) override;
     void draw_ui() override;
 
-    std::vector<std::shared_ptr<void>> get_input_ports() override;
-    std::vector<std::shared_ptr<void>> get_output_ports() override;
+    std::vector<std::shared_ptr<base_port>> get_input_ports() override;
+    std::vector<std::shared_ptr<base_port>> get_output_ports() override;
 
 private:
     std::string left_folder, right_folder;

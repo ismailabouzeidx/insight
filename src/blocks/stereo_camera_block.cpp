@@ -120,10 +120,10 @@ void stereo_camera_block::draw_ui() {
     ImNodes::EndNode();
 }
 
-std::vector<std::shared_ptr<void>> stereo_camera_block::get_input_ports() {
+std::vector<std::shared_ptr<base_port>> stereo_camera_block::get_input_ports() {
     return {};  // No inputs
 }
 
-std::vector<std::shared_ptr<void>> stereo_camera_block::get_output_ports() {
+std::vector<std::shared_ptr<base_port>> stereo_camera_block::get_output_ports() {
     return {left_output, right_output};
 }

@@ -1,24 +1,11 @@
 # Ignore CMake build directory
 /build/
 
-# Ignore GUI output and cache folders
-/gui/public/run/
-/gui/public/blocks.json
-
 # Ignore CMake generated files
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
-
-# Ignore compiled object files and binaries
-*.o
-*.obj
-*.so
-*.dll
-*.exe
-*.out
-*.json
 
 # Ignore logs and temporary files
 *.log

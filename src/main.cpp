@@ -16,7 +16,9 @@
 #include "blocks/image_viewer_block.hpp"
 #include "blocks/stereo_camera_block.hpp"
 #include "blocks/monocular_camera_block.hpp"
-
+#include "blocks/feature_extractor_block.hpp"
+#include "blocks/intrinsics_block.hpp"
+#include "blocks/extrinsics_block.hpp"
 
 static void glfw_error_callback(int error, const char* description) {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
@@ -91,6 +93,25 @@ static void render_ui(block_graph& graph, std::vector<link_t>& links, bool& posi
         std::string folder = "/your/path"; // You can leave this blank too
         graph.add_block(std::make_shared<monocular_camera_block>(id, folder));
         pending_node_positions[id] = ImNodes::EditorContextGetPanning() + ImVec2(600, 100);
+    }
+
+    if (ImGui::Button("Feature Extractor")) {
+        int id = 1000 + id_counter++;
+        auto pos = ImNodes::EditorContextGetPanning() + ImVec2(500, 100);
+        graph.add_block(std::make_shared<feature_extractor_block>(id));
+        pending_node_positions[id] = pos;
+    }
+    if (ImGui::Button("Intrinsics")) {
+        int id = 1000 + id_counter++;
+        auto pos = ImNodes::EditorContextGetPanning() + ImVec2(200, 100);
+        graph.add_block(std::make_shared<intrinsics_block>(id));
+        pending_node_positions[id] = pos;
+    }
+    if (ImGui::Button("Extrinsics")) {
+        int id = 1000 + id_counter++;
+        auto pos = ImNodes::EditorContextGetPanning() + ImVec2(600, 100);
+        graph.add_block(std::make_shared<extrinsics_block>(id));
+        pending_node_positions[id] = pos;
     }
 
 
