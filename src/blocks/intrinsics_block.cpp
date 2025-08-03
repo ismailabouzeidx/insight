@@ -31,13 +31,14 @@ void intrinsics_block::draw_ui() {
     ImGui::Text("D");
     ImNodes::EndOutputAttribute();
 
-    ImGui::SeparatorText("K (3x3)");
+    ImGui::Text("K (3x3)");
     for (int i = 0; i < 3; ++i) {
         float row[3] = {
             static_cast<float>(K.at<double>(i, 0)),
             static_cast<float>(K.at<double>(i, 1)),
             static_cast<float>(K.at<double>(i, 2))
         };
+        ImGui::SetNextItemWidth(120);
         if (ImGui::InputFloat3(("K row " + std::to_string(i)).c_str(), row)) {
             K.at<double>(i, 0) = row[0];
             K.at<double>(i, 1) = row[1];
@@ -45,20 +46,21 @@ void intrinsics_block::draw_ui() {
         }
     }
 
-    ImGui::SeparatorText("Distortion (D)");
-
+    ImGui::Text("Distortion (D)");
     float d_vals_4[4] = {
         static_cast<float>(D.at<double>(0)),
         static_cast<float>(D.at<double>(1)),
         static_cast<float>(D.at<double>(2)),
         static_cast<float>(D.at<double>(3))
     };
+    ImGui::SetNextItemWidth(120);
     if (ImGui::InputFloat4("D (k1-k4)", d_vals_4)) {
         for (int i = 0; i < 4; ++i)
             D.at<double>(i) = d_vals_4[i];
     }
 
     float d_val_5 = static_cast<float>(D.at<double>(4));
+    ImGui::SetNextItemWidth(120);
     if (ImGui::InputFloat("k5", &d_val_5)) {
         D.at<double>(4) = d_val_5;
     }

@@ -1,10 +1,13 @@
 #include "core/block_graph.hpp"
 #include "core/data_port.hpp"
+#include "core/link_t.hpp"
+
 #include <opencv2/core.hpp>
+
 #include <algorithm>
 #include <iostream>
-#include <vector>          // For std::begin, std::end
-#include "core/link_t.hpp" // Include link_t definition
+#include <vector>
+#include <typeinfo>
 
 void block_graph::add_block(std::shared_ptr<block> new_block) {
     blocks_.push_back(new_block);
@@ -35,9 +38,9 @@ void block_graph::process_all(const std::vector<link_t>& links) {
 
     for (const auto& link : links) {
         int from_node_id = link.start_attr / 10;
-        int to_node_id = link.end_attr / 10;
+        int to_node_id   = link.end_attr / 100;
         int from_port_index = link.start_attr % 10;
-        int to_port_index = link.end_attr % 10;
+        int to_port_index   = link.end_attr % 100;
 
         std::cout << "Processing link from node " << from_node_id << " port " << from_port_index
                   << " to node " << to_node_id << " port " << to_port_index << std::endl;
@@ -73,9 +76,10 @@ void block_graph::process_all(const std::vector<link_t>& links) {
                 continue;
             }
         }
-        std::cout << "Attempting keypoint transfer..." << std::endl;
-        std::cout << "From port type: " << typeid(*from.get()).name() << std::endl;
-        std::cout << "To port type: "   << typeid(*to.get()).name()   << std::endl;
+
+        std::cout << "Attempting keypoint transfer...\n";
+        std::cout << "From port type: " << typeid(*from.get()).name() << "\n";
+        std::cout << "To port type:   " << typeid(*to.get()).name()   << "\n";
 
         // Handle keypoints (vector<KeyPoint>)
         if (auto from_kp = std::dynamic_pointer_cast<data_port<std::vector<cv::KeyPoint>>>(from)) {
@@ -86,6 +90,14 @@ void block_graph::process_all(const std::vector<link_t>& links) {
             }
         }
 
+        // Handle matches (vector<DMatch>)
+        if (auto from_match = std::dynamic_pointer_cast<data_port<std::vector<cv::DMatch>>>(from)) {
+            if (auto to_match = std::dynamic_pointer_cast<data_port<std::vector<cv::DMatch>>>(to)) {
+                *to_match->data = *from_match->data;
+                std::cout << "Copied matches successfully.\n";
+                continue;
+            }
+        }
 
         std::cerr << "Unsupported port type or mismatched types.\n";
     }

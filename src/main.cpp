@@ -19,6 +19,8 @@
 #include "blocks/feature_extractor_block.hpp"
 #include "blocks/intrinsics_block.hpp"
 #include "blocks/extrinsics_block.hpp"
+#include "blocks/feature_matcher_block.hpp"
+#include "blocks/pose_estimator_block.hpp"
 
 static void glfw_error_callback(int error, const char* description) {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
@@ -38,7 +40,7 @@ static GLFWwindow* setup_window(const char* glsl_version) {
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) return nullptr;
 
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "Insight - ImNodes", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1280, 720, "insight", nullptr, nullptr);
     if (!window) return nullptr;
 
     glfwMakeContextCurrent(window);
@@ -90,7 +92,7 @@ static void render_ui(block_graph& graph, std::vector<link_t>& links, bool& posi
 
     if (ImGui::Button("Mono Camera")) {
         int id = 1000 + id_counter++;
-        std::string folder = "/your/path"; // You can leave this blank too
+        std::string folder = "/home/ismo/Downloads/data_odometry_gray/dataset/sequences/00/image_0/"; // You can leave this blank too
         graph.add_block(std::make_shared<monocular_camera_block>(id, folder));
         pending_node_positions[id] = ImNodes::EditorContextGetPanning() + ImVec2(600, 100);
     }
@@ -111,6 +113,18 @@ static void render_ui(block_graph& graph, std::vector<link_t>& links, bool& posi
         int id = 1000 + id_counter++;
         auto pos = ImNodes::EditorContextGetPanning() + ImVec2(600, 100);
         graph.add_block(std::make_shared<extrinsics_block>(id));
+        pending_node_positions[id] = pos;
+    }
+    if (ImGui::Button("Feature Matcher")) {
+        int id = 1000 + id_counter++;
+        auto pos = ImNodes::EditorContextGetPanning() + ImVec2(400, 100);
+        graph.add_block(std::make_shared<feature_matcher_block>(id));
+        pending_node_positions[id] = pos;
+    }
+    if (ImGui::Button("Pose Estimator")) {
+        int id = 1000 + id_counter++;
+        auto pos = ImNodes::EditorContextGetPanning() + ImVec2(400, 100);
+        graph.add_block(std::make_shared<pose_estimator_block>(id));
         pending_node_positions[id] = pos;
     }
 

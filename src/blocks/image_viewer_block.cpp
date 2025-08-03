@@ -9,38 +9,39 @@
 
 image_viewer_block::image_viewer_block(int id)
     : block(id, "Image Viewer") {
-    input_image = std::make_shared<data_port<cv::Mat>>("image");
-    input_keypoints = std::make_shared<data_port<std::vector<cv::KeyPoint>>>("keypoints");
+    image1_in = std::make_shared<data_port<cv::Mat>>("Image 1");
+    image2_in = std::make_shared<data_port<cv::Mat>>("Image 2");
+    kps1_in = std::make_shared<data_port<std::vector<cv::KeyPoint>>>("Keypoints 1");
+    kps2_in = std::make_shared<data_port<std::vector<cv::KeyPoint>>>("Keypoints 2");
+    matches_in = std::make_shared<data_port<std::vector<cv::DMatch>>>("Matches");
 }
 
-void image_viewer_block::process(const std::vector<link_t>& links) {
+void image_viewer_block::process(const std::vector<link_t>&) {
     static const int throttle_frames = 10;
 
-    if (!input_image || !input_image->data || input_image->data->empty())
-        return;
+    if (!image1_in || !image1_in->data || image1_in->data->empty()) return;
 
-    cv::Mat img_to_display = *input_image->data;
-    if (input_keypoints) {
-    std::cout << "[ImageViewer] input_keypoints exists\n";
-    if (input_keypoints->data) {
-        std::cout << "[ImageViewer] data ptr valid\n";
-        std::cout << "[ImageViewer] keypoints size: " << input_keypoints->data->size() << "\n";
+    cv::Mat img_to_display;
+
+    bool can_draw_matches =
+        image2_in && image2_in->data && !image2_in->data->empty() &&
+        kps1_in && kps1_in->data && !kps1_in->data->empty() &&
+        kps2_in && kps2_in->data && !kps2_in->data->empty() &&
+        matches_in && matches_in->data && !matches_in->data->empty();
+
+    if (can_draw_matches) {
+        std::cout << "[ImageViewer] Drawing matches: " << matches_in->data->size() << " matches.\n";
+        cv::drawMatches(*image1_in->data, *kps1_in->data,
+                        *image2_in->data, *kps2_in->data,
+                        *matches_in->data, img_to_display);
+    } else if (kps1_in && kps1_in->data && !kps1_in->data->empty()) {
+        std::cout << "[ImageViewer] Drawing keypoints: " << kps1_in->data->size() << " kps.\n";
+        cv::drawKeypoints(*image1_in->data, *kps1_in->data, img_to_display);
     } else {
-        std::cout << "[ImageViewer] data ptr is NULL\n";
-    }
-} else {
-    std::cout << "[ImageViewer] input_keypoints is NULL\n";
-}
-
-    if (input_keypoints && input_keypoints->data && !input_keypoints->data->empty()) {
-        std::cout << "[ImageViewer] Drawing " << input_keypoints->data->size() << " keypoints.\n";
-        cv::drawKeypoints(*input_image->data,
-                          *input_keypoints->data,
-                          img_to_display);
+        img_to_display = *image1_in->data;
     }
 
     if (frame_counter % throttle_frames == 0) {
-        std::cout << "[ImageViewer] Node " << id << " Updating texture..." << std::endl;
         update_texture(img_to_display);
     }
 
@@ -53,17 +54,11 @@ void image_viewer_block::draw_ui() {
     ImGui::TextUnformatted(name.c_str());
     ImNodes::EndNodeTitleBar();
 
-    // Input: Image
-    ImNodes::BeginInputAttribute(id * 10 + 0);
-    ImGui::Text("Image");
-    ImGui::Dummy(ImVec2(1, 1));
-    ImNodes::EndInputAttribute();
-
-    // Input: Keypoints
-    ImNodes::BeginInputAttribute(id * 10 + 1);
-    ImGui::Text("Keypoints");
-    ImGui::Dummy(ImVec2(1, 1));
-    ImNodes::EndInputAttribute();
+    ImNodes::BeginInputAttribute(id * 100 + 0); ImGui::Text("Image 1"); ImNodes::EndInputAttribute();
+    ImNodes::BeginInputAttribute(id * 100 + 1); ImGui::Text("Image 2"); ImNodes::EndInputAttribute();
+    ImNodes::BeginInputAttribute(id * 100 + 2); ImGui::Text("Keypoints 1"); ImNodes::EndInputAttribute();
+    ImNodes::BeginInputAttribute(id * 100 + 3); ImGui::Text("Keypoints 2"); ImNodes::EndInputAttribute();
+    ImNodes::BeginInputAttribute(id * 100 + 4); ImGui::Text("Matches"); ImNodes::EndInputAttribute();
 
     if (texture_id) {
         ImGui::Image((void*)(intptr_t)texture_id, ImVec2(tex_width, tex_height));
@@ -75,49 +70,47 @@ void image_viewer_block::draw_ui() {
 }
 
 std::vector<std::shared_ptr<base_port>> image_viewer_block::get_input_ports() {
-    return {input_image, input_keypoints};  // Ensure keypoints is at index 1
+    return {image1_in, image2_in, kps1_in, kps2_in, matches_in};
 }
 
 std::vector<std::shared_ptr<base_port>> image_viewer_block::get_output_ports() {
-    return {};  // Viewer has no outputs
+    return {};
 }
 
 void image_viewer_block::update_texture(const cv::Mat& img) {
-    std::cout << "[ImageViewer] Updating texture..." << std::endl;
-
-    if (texture_id) {
-        cleanup_texture();
-    }
-
+    if (texture_id) cleanup_texture();
     if (img.empty()) {
-        std::cout << "[ImageViewer] Warning: input image is empty, skipping texture update." << std::endl;
+        std::cerr << "[ImageViewer] Empty image, skipping.\n";
         texture_id = 0;
         return;
     }
 
-    cv::Mat rgb;
-    cv::cvtColor(img, rgb, cv::COLOR_BGR2RGB);
+    const int max_dim = 512;  // bounding box size
+
+    cv::Mat resized, rgb;
+    float scale = std::min(
+        static_cast<float>(max_dim) / img.cols,
+        static_cast<float>(max_dim) / img.rows
+    );
+
+    int new_width = static_cast<int>(img.cols * scale);
+    int new_height = static_cast<int>(img.rows * scale);
+
+    cv::resize(img, resized, cv::Size(new_width, new_height));
+    cv::cvtColor(resized, rgb, cv::COLOR_BGR2RGB);
 
     tex_width = rgb.cols;
     tex_height = rgb.rows;
 
     glGenTextures(1, &texture_id);
-    std::cout << "[ImageViewer] Generated texture id: " << texture_id << std::endl;
-
     glBindTexture(GL_TEXTURE_2D, texture_id);
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex_width, tex_height, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb.data);
-
-    GLenum err;
-    while ((err = glGetError()) != GL_NO_ERROR) {
-        std::cerr << "[ImageViewer] OpenGL error after glTexImage2D: " << err << std::endl;
-    }
-
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    std::cout << "[ImageViewer] Texture upload completed." << std::endl;
 }
+
+
 
 void image_viewer_block::cleanup_texture() {
     if (texture_id) {

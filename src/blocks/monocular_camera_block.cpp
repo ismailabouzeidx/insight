@@ -10,7 +10,8 @@ namespace fs = std::filesystem;
 
 monocular_camera_block::monocular_camera_block(int id, const std::string& folder_path)
     : block(id, "Mono Camera"), folder(folder_path) {
-    output = std::make_shared<data_port<cv::Mat>>("image");
+    output_prev = std::make_shared<data_port<cv::Mat>>("prev");
+    output_curr = std::make_shared<data_port<cv::Mat>>("curr");
     load_image_list();
 }
 
@@ -28,6 +29,7 @@ void monocular_camera_block::load_image_list() {
     }
 
     std::sort(images.begin(), images.end());
+    index = -1;  // So first frame loads 0000
 }
 
 bool monocular_camera_block::is_port_connected(int port_index, const std::vector<link_t>& links) {
@@ -40,16 +42,26 @@ bool monocular_camera_block::is_port_connected(int port_index, const std::vector
 }
 
 void monocular_camera_block::load_next_frame() {
-    if (index >= images.size()) return;
+    if (index + 1 >= images.size()) return;
 
-    current_image = cv::imread(images[index], cv::IMREAD_COLOR);
-    if (!current_image.empty()) {
-        output->set(current_image);
-        ++index;
+    // First load: initialize prev and curr
+    if (!has_started) {
+        curr_image = cv::imread(images[++index], cv::IMREAD_COLOR);
+        prev_image = curr_image.clone();  // Set prev = curr at first
+        has_started = true;
+    } else {
+        prev_image = curr_image.clone();
+        curr_image = cv::imread(images[++index], cv::IMREAD_COLOR);
+    }
+
+    if (!curr_image.empty()) {
+        output_prev->set(prev_image);
+        output_curr->set(curr_image);
     } else {
         std::cerr << "[Mono Camera] Failed to load image: " << images[index] << std::endl;
     }
 }
+
 
 void monocular_camera_block::process(const std::vector<link_t>& links) {
     if (mode == SequenceMode::AUTO_PLAY) {
@@ -60,18 +72,17 @@ void monocular_camera_block::process(const std::vector<link_t>& links) {
     }
 }
 
-
 void monocular_camera_block::draw_ui() {
     ImNodes::BeginNode(id);
     ImNodes::BeginNodeTitleBar();
-    ImGui::TextUnformatted(name.c_str());
+    ImGui::TextUnformatted("Mono Cam");  // Shortened title
     ImNodes::EndNodeTitleBar();
 
-    ImNodes::BeginOutputAttribute(id * 10 + 0);
-    ImGui::Text("Image");
-    ImNodes::EndOutputAttribute();
+    // Output ports
+    ImNodes::BeginOutputAttribute(id * 10 + 0); ImGui::Text("prev"); ImNodes::EndOutputAttribute();
+    ImNodes::BeginOutputAttribute(id * 10 + 1); ImGui::Text("curr"); ImNodes::EndOutputAttribute();
 
-    // Folder input
+    // Folder path input
     static char folder_buf[256];
     static bool initialized = false;
     if (!initialized) {
@@ -79,42 +90,52 @@ void monocular_camera_block::draw_ui() {
         initialized = true;
     }
 
-    ImGui::InputText("Folder", folder_buf, IM_ARRAYSIZE(folder_buf));
-    if (ImGui::Button("Set Folder")) {
+    ImGui::Text("Folder:");
+    ImGui::SetNextItemWidth(120);
+    ImGui::InputText("##folder", folder_buf, IM_ARRAYSIZE(folder_buf));
+
+    if (ImGui::Button("Set")) {
         folder = std::string(folder_buf);
         load_image_list();
-        index = 0;
         has_started = false;
+        prev_image.release();
+        curr_image.release();
+        output_prev->set(cv::Mat());
+        output_curr->set(cv::Mat());
     }
 
-    // Mode selector
+    // Mode
     const char* modes[] = {"Auto", "Manual"};
-    ImGui::Combo("Mode", (int*)&mode, modes, IM_ARRAYSIZE(modes));
+    ImGui::Text("Mode:");
+    ImGui::SetNextItemWidth(80);
+    ImGui::Combo("##mode", (int*)&mode, modes, IM_ARRAYSIZE(modes));
 
-    if (index < images.size()) {
-        ImGui::Text("Current: %s", fs::path(images[index]).filename().c_str());
+    // Current frame
+    if (index >= 0 && index < images.size()) {
+        ImGui::Text("Img: %s", fs::path(images[index]).filename().c_str());
     } else {
-        ImGui::Text("End of sequence");
+        ImGui::Text("Not started");
     }
 
-    if (ImGui::Button("Load Next")) {
-        advance_requested = true;
-    }
-    
+    // Buttons in same line
+    if (ImGui::Button("Next")) advance_requested = true;
+    ImGui::SameLine();
     if (ImGui::Button("Reset")) {
-        index = 0;
+        index = -1;
         has_started = false;
-        current_image.release();
-        output->set(cv::Mat());
+        prev_image.release();
+        curr_image.release();
+        output_prev->set(cv::Mat());
+        output_curr->set(cv::Mat());
     }
 
     ImNodes::EndNode();
 }
 
 std::vector<std::shared_ptr<base_port>> monocular_camera_block::get_input_ports() {
-    return {};  // No inputs
+    return {};
 }
 
 std::vector<std::shared_ptr<base_port>> monocular_camera_block::get_output_ports() {
-    return {output};
+    return {output_prev, output_curr};
 }

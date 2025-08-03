@@ -54,45 +54,42 @@ void feature_extractor_block::draw_ui() {
     ImNodes::BeginNode(id);
 
     ImNodes::BeginNodeTitleBar();
-    ImGui::TextUnformatted(name.c_str());
+    ImGui::TextUnformatted("Feat Extractor");  // shorter title
     ImNodes::EndNodeTitleBar();
 
-    int input_attr_id = id * 10 + 0;         // input
-    int keypoints_attr_id = id * 10 + 1;     // output 1
-    int descriptors_attr_id = id * 10 + 2;   // output 2
+    int input_attr_id        = id * 100 + 0;
+    int descriptors_attr_id  = id * 10 + 0;
+    int keypoints_attr_id    = id * 10 + 1;
 
-    std::cout << "[FeatureExtractor] input_attr_id: " << input_attr_id << std::endl;
-    std::cout << "[FeatureExtractor] keypoints_attr_id: " << keypoints_attr_id << std::endl;
-    std::cout << "[FeatureExtractor] descriptors_attr_id: " << descriptors_attr_id << std::endl;
-
-    // Input
+    // Input: Image
     ImNodes::BeginInputAttribute(input_attr_id);
-    ImGui::Text("Image");
+    ImGui::Text("Img");
     ImGui::Dummy(ImVec2(1, 1));
     ImNodes::EndInputAttribute();
 
-    // Output: keypoints
-    ImNodes::BeginOutputAttribute(keypoints_attr_id);
-    ImGui::Text("Keypoints");
-    ImNodes::EndOutputAttribute();
-
-    // Output: descriptors
+    // Output: Descriptors
     ImNodes::BeginOutputAttribute(descriptors_attr_id);
-    ImGui::Text("Descriptors");
+    ImGui::Text("Desc");
     ImNodes::EndOutputAttribute();
 
-    // Algorithm selection dropdown
+    // Output: Keypoints
+    ImNodes::BeginOutputAttribute(keypoints_attr_id);
+    ImGui::Text("Kpts");
+    ImNodes::EndOutputAttribute();
+
+    // Dropdown: Algorithm
+    ImGui::Text("Algo:");
+    ImGui::SetNextItemWidth(80);
     const char* current = available_algorithms[algorithm_index].c_str();
-    if (ImGui::BeginCombo("Algorithm", current)) {
+    if (ImGui::BeginCombo("##algo", current)) {
         for (int i = 0; i < available_algorithms.size(); ++i) {
             bool is_selected = (algorithm_index == i);
             if (ImGui::Selectable(available_algorithms[i].c_str(), is_selected)) {
                 algorithm_index = i;
                 algorithm = available_algorithms[i];
-                create_extractor();  // switch extractor
+                create_extractor();
             }
-            if (is_selected)
-                ImGui::SetItemDefaultFocus();
+            if (is_selected) ImGui::SetItemDefaultFocus();
         }
         ImGui::EndCombo();
     }

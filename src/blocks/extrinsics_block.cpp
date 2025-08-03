@@ -32,13 +32,14 @@ void extrinsics_block::draw_ui() {
     ImGui::Text("t");
     ImNodes::EndOutputAttribute();
 
-    ImGui::SeparatorText("Rotation (R)");
+    ImGui::Text("Rotation (R)");
     for (int i = 0; i < 3; ++i) {
         float row[3] = {
             static_cast<float>(R.at<double>(i, 0)),
             static_cast<float>(R.at<double>(i, 1)),
             static_cast<float>(R.at<double>(i, 2))
         };
+        ImGui::SetNextItemWidth(120);
         if (ImGui::InputFloat3(("R row " + std::to_string(i)).c_str(), row)) {
             R.at<double>(i, 0) = row[0];
             R.at<double>(i, 1) = row[1];
@@ -46,12 +47,13 @@ void extrinsics_block::draw_ui() {
         }
     }
 
-    ImGui::SeparatorText("Translation (t)");
+    ImGui::Text("Translation (t)");
     float t_vals[3] = {
         static_cast<float>(t.at<double>(0)),
         static_cast<float>(t.at<double>(1)),
         static_cast<float>(t.at<double>(2))
     };
+    ImGui::SetNextItemWidth(120);
     if (ImGui::InputFloat3("t", t_vals)) {
         t.at<double>(0) = t_vals[0];
         t.at<double>(1) = t_vals[1];

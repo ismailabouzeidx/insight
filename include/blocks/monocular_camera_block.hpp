@@ -30,14 +30,11 @@ private:
 
     SequenceMode mode = SequenceMode::MANUAL;
 
-    cv::Mat current_image;
-    std::shared_ptr<data_port<cv::Mat>> output;
+    std::shared_ptr<data_port<cv::Mat>> output_prev;
+    std::shared_ptr<data_port<cv::Mat>> output_curr;
+    cv::Mat prev_image;
+    cv::Mat curr_image;
 
-    // Intrinsics/Extrinsics
-    cv::Mat K = cv::Mat::eye(3, 3, CV_64F);
-    cv::Mat D = cv::Mat::zeros(1, 5, CV_64F);
-    cv::Mat R = cv::Mat::eye(3, 3, CV_64F);
-    cv::Mat t = cv::Mat::zeros(3, 1, CV_64F);
 
     void load_image_list();
     bool is_port_connected(int port_index, const std::vector<link_t>& links);
