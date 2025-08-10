@@ -17,6 +17,7 @@ public:
 private:
     cv::Mat K = cv::Mat::eye(3, 3, CV_64F);
     cv::Mat D = cv::Mat::zeros(5, 1, CV_64F);
+    int frame_id = 0;
     std::shared_ptr<data_port<cv::Mat>> output_K;
     std::shared_ptr<data_port<cv::Mat>> output_D;
 };

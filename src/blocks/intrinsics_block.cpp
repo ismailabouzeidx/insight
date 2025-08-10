@@ -1,20 +1,20 @@
-// intrinsics_block.cpp
 #include "blocks/intrinsics_block.hpp"
 #include <imnodes.h>
 #include <imgui.h>
 #include <string>
 
 intrinsics_block::intrinsics_block(int id)
-    : block(id, "Intrinsics") {
+    : block(id, "Intrinsics"), frame_id(0) {  // initialize frame_id to 0
     output_K = std::make_shared<data_port<cv::Mat>>("K");
     output_D = std::make_shared<data_port<cv::Mat>>("D");
-    output_K->set(K);
-    output_D->set(D);
+    output_K->set(K, frame_id);
+    output_D->set(D, frame_id);
 }
 
 void intrinsics_block::process(const std::vector<link_t>&) {
-    output_K->set(K);
-    output_D->set(D);
+    frame_id++;  // increment frame id each process call
+    output_K->set(K, frame_id);
+    output_D->set(D, frame_id);
 }
 
 void intrinsics_block::draw_ui() {

@@ -21,6 +21,10 @@
 #include "blocks/extrinsics_block.hpp"
 #include "blocks/feature_matcher_block.hpp"
 #include "blocks/pose_estimator_block.hpp"
+#include "blocks/pose_accumulator_block.hpp"
+#include "blocks/visualizer_block.hpp"
+#include "blocks/homography_block.hpp"
+#include "blocks/filter_block.hpp"
 
 static void glfw_error_callback(int error, const char* description) {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
@@ -127,8 +131,30 @@ static void render_ui(block_graph& graph, std::vector<link_t>& links, bool& posi
         graph.add_block(std::make_shared<pose_estimator_block>(id));
         pending_node_positions[id] = pos;
     }
-
-
+    if (ImGui::Button("Pose Accumulator")) {
+        int id = 1000 + id_counter++;
+        auto pos = ImNodes::EditorContextGetPanning() + ImVec2(400, 100);
+        graph.add_block(std::make_shared<pose_accumulator_block>(id));
+        pending_node_positions[id] = pos;
+    }
+    if (ImGui::Button("Visualizer")) {
+        int id = 1000 + id_counter++;
+        auto pos = ImNodes::EditorContextGetPanning() + ImVec2(400, 100);
+        graph.add_block(std::make_shared<visualizer_block>(id));
+        pending_node_positions[id] = pos;
+    }
+    if (ImGui::Button("Homography Calculator")) {
+        int id = 1000 + id_counter++;
+        auto pos = ImNodes::EditorContextGetPanning() + ImVec2(400, 100);
+        graph.add_block(std::make_shared<homography_block>(id));
+        pending_node_positions[id] = pos;
+    }
+    if (ImGui::Button("Filter Block")) {
+        int id = 1000 + id_counter++;
+        auto pos = ImNodes::EditorContextGetPanning() + ImVec2(400, 100);
+        graph.add_block(std::make_shared<filter_block>(id));
+        pending_node_positions[id] = pos;
+    }
     ImGui::End();
 
     ImGui::SetNextWindowPos(ImVec2(200, 0), ImGuiCond_Once);
@@ -161,7 +187,7 @@ static void render_ui(block_graph& graph, std::vector<link_t>& links, bool& posi
     int start_attr, end_attr;
     if (ImNodes::IsLinkCreated(&start_attr, &end_attr)) {
         links.push_back({ id_counter++, start_attr, end_attr });
-        std::cout << "[Created] Link: " << start_attr << " -> " << end_attr << std::endl;
+        // std::cout << "[Created] Link: " << start_attr << " -> " << end_attr << std::endl;
     }
 
     // Handle link deletion
@@ -178,7 +204,7 @@ static void render_ui(block_graph& graph, std::vector<link_t>& links, bool& posi
         if (ImGui::MenuItem("Delete Link")) {
             links.erase(std::remove_if(links.begin(), links.end(),
                 [](const link_t& l) { return l.id == context_link_id; }), links.end());
-            std::cout << "[Deleted] Link " << context_link_id << std::endl;
+            // std::cout << "[Deleted] Link " << context_link_id << std::endl;
         }
         ImGui::EndPopup();
     }
@@ -195,7 +221,7 @@ static void render_ui(block_graph& graph, std::vector<link_t>& links, bool& posi
                     return l.start_attr / 10 == node_id || l.end_attr / 10 == node_id;
                 }), links.end());
             graph.remove_block(node_id);
-            std::cout << "[Deleted] Node " << node_id << std::endl;
+            // std::cout << "[Deleted] Node " << node_id << std::endl;
         }
     }
 

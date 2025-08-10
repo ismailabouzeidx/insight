@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 stereo_camera_block::stereo_camera_block(int id,
                                          const std::string& left_path,
                                          const std::string& right_path)
-    : block(id, "Stereo Camera"), left_folder(left_path), right_folder(right_path) {
+    : block(id, "Stereo Camera"), left_folder(left_path), right_folder(right_path), frame_id(-1) {
     left_output = std::make_shared<data_port<cv::Mat>>("left_image");
     right_output = std::make_shared<data_port<cv::Mat>>("right_image");
     load_image_lists();
@@ -62,15 +62,17 @@ void stereo_camera_block::process(const std::vector<link_t>& links) {
     left_img = cv::imread(left_images[index], cv::IMREAD_COLOR);
     right_img = cv::imread(right_images[index], cv::IMREAD_COLOR);
 
-    if (!left_img.empty())
-        left_output->set(left_img);
+    if (!left_img.empty()) {
+        ++frame_id;  // increment frame_id on new frame load
+        left_output->set(left_img, frame_id);
+    }
 
-    if (!right_img.empty())
-        right_output->set(right_img);
+    if (!right_img.empty()) {
+        right_output->set(right_img, frame_id);
+    }
 
     ++index;
 }
-
 
 void stereo_camera_block::draw_ui() {
     ImNodes::BeginNode(id);
@@ -104,6 +106,7 @@ void stereo_camera_block::draw_ui() {
         right_folder = std::string(right_buf);
         load_image_lists();
         index = 0;
+        frame_id = -1;  // reset frame_id on new folder load
     }
 
     if (index < left_images.size()) {
@@ -113,7 +116,7 @@ void stereo_camera_block::draw_ui() {
     }
 
     if (ImGui::Button("Load Next")) {
-        // This triggers loading even without connections; you can keep or remove as needed
+        // Manual load next frame (no connections needed)
         process(std::vector<link_t>{});
     }
 

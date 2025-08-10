@@ -17,6 +17,13 @@ void feature_matcher_block::process(const std::vector<link_t>&) {
     const cv::Mat* desc2 = desc2_in->get();
     if (!desc1 || !desc2 || desc1->empty() || desc2->empty()) return;
 
+    int input_frame_id = desc1_in->frame_id;
+    if (input_frame_id == last_processed_frame_id) {
+        // Already processed this frame, skip redundant work
+        return;
+    }
+    last_processed_frame_id = input_frame_id;
+
     std::vector<std::vector<cv::DMatch>> knn_matches;
     cv::Ptr<cv::DescriptorMatcher> matcher;
 
@@ -41,23 +48,22 @@ void feature_matcher_block::process(const std::vector<link_t>&) {
         std::cerr << "[Matcher] OpenCV error: " << e.what() << "\n";
         return;
     }
-    std::cout << "\n\n LOWE's RATIO: " << lowe_ratio << std::endl << std::endl;
+
     std::vector<cv::DMatch> good_matches;
     for (const auto& pair : knn_matches) {
         if (pair.size() >= 2 && pair[0].distance < lowe_ratio * pair[1].distance) {
             good_matches.push_back(pair[0]);
         }
     }
-    std::cout << "[Matcher] Found " << good_matches.size() << " good matches\n";
 
-    matches_out->set(good_matches);
+    matches_out->set(good_matches, input_frame_id);
 }
 
 void feature_matcher_block::draw_ui() {
     ImNodes::BeginNode(id);
 
     ImNodes::BeginNodeTitleBar();
-    ImGui::TextUnformatted("Matcher");  // Shortened title
+    ImGui::TextUnformatted("Matcher");
     ImNodes::EndNodeTitleBar();
 
     // Input ports
@@ -76,12 +82,10 @@ void feature_matcher_block::draw_ui() {
     ImGui::Text("M");
     ImNodes::EndOutputAttribute();
 
-    // Matcher selection
+    // Matcher type selector
     ImGui::Text("Type:");
     ImGui::SetNextItemWidth(100);
-    static const char* matcher_names[] = {
-        "BF-HAM", "BF-L2", "FLANN"
-    };
+    static const char* matcher_names[] = { "BF-HAM", "BF-L2", "FLANN" };
     ImGui::Combo("##matcher", &matcher_type_index, matcher_names, IM_ARRAYSIZE(matcher_names));
 
     // Lowe's ratio slider

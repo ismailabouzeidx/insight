@@ -29,4 +29,6 @@ private:
 
     void create_extractor();  // Switch between ORB, SIFT, etc.
     bool is_port_connected(int port_index, const std::vector<link_t>& links);
+
+    int last_processed_frame_id = -1;
 };

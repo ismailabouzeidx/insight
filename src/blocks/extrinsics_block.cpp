@@ -1,4 +1,3 @@
-// extrinsics_block.cpp
 #include "blocks/extrinsics_block.hpp"
 
 #include <imnodes.h>
@@ -6,16 +5,16 @@
 #include <string>
 
 extrinsics_block::extrinsics_block(int id)
-    : block(id, "Extrinsics") {
+    : block(id, "Extrinsics"), frame_id(0) {  // Add frame_id member initialized to 0
     output_R = std::make_shared<data_port<cv::Mat>>("R");
     output_t = std::make_shared<data_port<cv::Mat>>("t");
-    output_R->set(R);
-    output_t->set(t);
+    output_R->set(R, frame_id);
+    output_t->set(t, frame_id);
 }
 
 void extrinsics_block::process(const std::vector<link_t>&) {
-    output_R->set(R);
-    output_t->set(t);
+    output_R->set(R, frame_id);
+    output_t->set(t, frame_id);
 }
 
 void extrinsics_block::draw_ui() {

@@ -22,6 +22,8 @@ private:
     std::shared_ptr<data_port<std::vector<cv::DMatch>>> matches_out;
 
     int matcher_type_index = 0;  // 0: BF_HAMMING, 1: BF_L2, 2: FLANN
+    int last_processed_frame_id = -1;  // Track last processed frame id
+
     float lowe_ratio = 0.75f;
 
 };

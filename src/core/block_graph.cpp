@@ -20,10 +20,10 @@ void block_graph::remove_block(int id) {
         });
 
     if (it != blocks_.end()) {
-        std::cout << "[block_graph] Removing block with ID " << id << std::endl;
+        // std::cout << "[block_graph] Removing block with ID " << id << std::endl;
         blocks_.erase(it, blocks_.end());
     } else {
-        std::cout << "[block_graph] Block with ID " << id << " not found.\n";
+        // std::cout << "[block_graph] Block with ID " << id << " not found.\n";
     }
 }
 
@@ -42,8 +42,8 @@ void block_graph::process_all(const std::vector<link_t>& links) {
         int from_port_index = link.start_attr % 10;
         int to_port_index   = link.end_attr % 100;
 
-        std::cout << "Processing link from node " << from_node_id << " port " << from_port_index
-                  << " to node " << to_node_id << " port " << to_port_index << std::endl;
+        // std::cout << "Processing link from node " << from_node_id << " port " << from_port_index
+        //           << " to node " << to_node_id << " port " << to_port_index << std::endl;
 
         auto from_block = std::find_if(blocks_.begin(), blocks_.end(),
             [from_node_id](const std::shared_ptr<block>& b) { return b->id == from_node_id; });
@@ -51,7 +51,7 @@ void block_graph::process_all(const std::vector<link_t>& links) {
             [to_node_id](const std::shared_ptr<block>& b) { return b->id == to_node_id; });
 
         if (from_block == blocks_.end() || to_block == blocks_.end()) {
-            std::cerr << "Invalid node reference in link.\n";
+            // std::cerr << "Invalid node reference in link.\n";
             continue;
         }
 
@@ -71,21 +71,19 @@ void block_graph::process_all(const std::vector<link_t>& links) {
             if (auto to_img = std::dynamic_pointer_cast<data_port<cv::Mat>>(to)) {
                 if (!from_img->data->empty()) {
                     *to_img->data = *from_img->data;
-                    std::cout << "Copied cv::Mat data successfully.\n";
+                    to_img->frame_id = from_img->frame_id;  // copy frame id
+                    // std::cout << "Copied cv::Mat data successfully.\n";
                 }
                 continue;
             }
         }
 
-        std::cout << "Attempting keypoint transfer...\n";
-        std::cout << "From port type: " << typeid(*from.get()).name() << "\n";
-        std::cout << "To port type:   " << typeid(*to.get()).name()   << "\n";
-
         // Handle keypoints (vector<KeyPoint>)
         if (auto from_kp = std::dynamic_pointer_cast<data_port<std::vector<cv::KeyPoint>>>(from)) {
             if (auto to_kp = std::dynamic_pointer_cast<data_port<std::vector<cv::KeyPoint>>>(to)) {
                 *to_kp->data = *from_kp->data;
-                std::cout << "Copied keypoints successfully.\n";
+                to_kp->frame_id = from_kp->frame_id;  // copy frame id
+                // std::cout << "Copied keypoints successfully.\n";
                 continue;
             }
         }
@@ -94,7 +92,18 @@ void block_graph::process_all(const std::vector<link_t>& links) {
         if (auto from_match = std::dynamic_pointer_cast<data_port<std::vector<cv::DMatch>>>(from)) {
             if (auto to_match = std::dynamic_pointer_cast<data_port<std::vector<cv::DMatch>>>(to)) {
                 *to_match->data = *from_match->data;
-                std::cout << "Copied matches successfully.\n";
+                to_match->frame_id = from_match->frame_id;  // copy frame id
+                // std::cout << "Copied matches successfully.\n";
+                continue;
+            }
+        }
+        
+        // Handle vector<Mat> (e.g. for pose history)
+        if (auto from_vecmat = std::dynamic_pointer_cast<data_port<std::vector<cv::Mat>>>(from)) {
+            if (auto to_vecmat = std::dynamic_pointer_cast<data_port<std::vector<cv::Mat>>>(to)) {
+                *to_vecmat->data = *from_vecmat->data;
+                to_vecmat->frame_id = from_vecmat->frame_id;  // copy frame id
+                // std::cout << "Copied vector<cv::Mat> data successfully.\n";
                 continue;
             }
         }
@@ -102,3 +111,4 @@ void block_graph::process_all(const std::vector<link_t>& links) {
         std::cerr << "Unsupported port type or mismatched types.\n";
     }
 }
+

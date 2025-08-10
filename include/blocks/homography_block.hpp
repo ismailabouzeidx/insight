@@ -5,9 +5,9 @@
 #include <opencv2/core.hpp>
 #include <vector>
 
-class pose_estimator_block : public block {
+class homography_block : public block {
 public:
-    pose_estimator_block(int id);
+    homography_block(int id);
 
     void process(const std::vector<link_t>& links) override;
     void draw_ui() override;
@@ -19,11 +19,12 @@ private:
     std::shared_ptr<data_port<std::vector<cv::KeyPoint>>> kpts1_in;
     std::shared_ptr<data_port<std::vector<cv::KeyPoint>>> kpts2_in;
     std::shared_ptr<data_port<std::vector<cv::DMatch>>> matches_in;
-    std::shared_ptr<data_port<cv::Mat>> K_in;
 
-    std::shared_ptr<data_port<cv::Mat>> R_out;
-    std::shared_ptr<data_port<cv::Mat>> t_out;
+    std::shared_ptr<data_port<cv::Mat>> homography_out; // 3x3 homography matrix
+    std::shared_ptr<data_port<cv::Mat>> mask_out;       // inlier mask (uchar)
 
-    int frame_id;  // Current frame id for processing
     int last_processed_frame_id = -1;
+    
+    float ransac_reproj_thresh = 5.0;
+    float confidence = 0.99f;
 };

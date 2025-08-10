@@ -8,7 +8,7 @@
 #include <iostream>
 
 pose_estimator_block::pose_estimator_block(int id)
-    : block(id, "Pose Estimator") {
+    : block(id, "Pose Estimator"), frame_id(-1) {  // Add frame_id member and initialize
     kpts1_in = std::make_shared<data_port<std::vector<cv::KeyPoint>>>("Keypoints 1");
     kpts2_in = std::make_shared<data_port<std::vector<cv::KeyPoint>>>("Keypoints 2");
     matches_in = std::make_shared<data_port<std::vector<cv::DMatch>>>("Matches");
@@ -23,6 +23,13 @@ void pose_estimator_block::process(const std::vector<link_t>&) {
         std::cerr << "[PoseEstimator] One or more ports not connected.\n";
         return;
     }
+
+    int input_frame_id = kpts1_in->frame_id;
+    if (input_frame_id == last_processed_frame_id) {
+        // Already processed this frame, skip redundant work
+        return;
+    }
+    last_processed_frame_id = input_frame_id;
 
     const auto* kpts1 = kpts1_in->get();
     const auto* kpts2 = kpts2_in->get();
@@ -44,7 +51,11 @@ void pose_estimator_block::process(const std::vector<link_t>&) {
         pts1.push_back((*kpts1)[m.queryIdx].pt);
         pts2.push_back((*kpts2)[m.trainIdx].pt);
     }
-
+    
+    if (K->rows != 3 || K->cols != 3 || K->channels() != 1) {
+        std::cerr << "[PoseEstimator] Invalid intrinsic matrix:\n" << *K << std::endl;
+        return;
+    }
     cv::Mat mask;
     cv::Mat E = cv::findEssentialMat(pts1, pts2, *K, cv::RANSAC, 0.999, 1.0, mask);
     if (E.empty()) {
@@ -54,14 +65,11 @@ void pose_estimator_block::process(const std::vector<link_t>&) {
 
     cv::Mat R, t;
     int inliers = cv::recoverPose(E, pts1, pts2, *K, R, t, mask);
-    std::cout << "\n\n";
-    std::cout << "[PoseEstimator] Inliers after pose recovery: " << inliers << "\n";
-    std::cout << R << std::endl;
-    std::cout << t << std::endl;
-    std::cout << "\n\n";
 
-    R_out->set(R);
-    t_out->set(t);
+    std::cout << "[PoseEstimator] Processing frame " << input_frame_id << ", inliers: " << inliers << "\n";
+
+    R_out->set(R, input_frame_id);
+    t_out->set(t, input_frame_id);
 }
 
 void pose_estimator_block::draw_ui() {

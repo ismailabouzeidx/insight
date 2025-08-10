@@ -17,9 +17,13 @@ image_viewer_block::image_viewer_block(int id)
 }
 
 void image_viewer_block::process(const std::vector<link_t>&) {
-    static const int throttle_frames = 10;
-
     if (!image1_in || !image1_in->data || image1_in->data->empty()) return;
+
+    // Check if frame_id has changed, skip processing if same frame
+    if (image1_in->frame_id == last_frame_id) {
+        return;  // Already processed this frame
+    }
+    last_frame_id = image1_in->frame_id;
 
     cv::Mat img_to_display;
 
@@ -30,20 +34,18 @@ void image_viewer_block::process(const std::vector<link_t>&) {
         matches_in && matches_in->data && !matches_in->data->empty();
 
     if (can_draw_matches) {
-        std::cout << "[ImageViewer] Drawing matches: " << matches_in->data->size() << " matches.\n";
+        // std::cout << "[ImageViewer] Drawing matches: " << matches_in->data->size() << " matches.\n";
         cv::drawMatches(*image1_in->data, *kps1_in->data,
                         *image2_in->data, *kps2_in->data,
                         *matches_in->data, img_to_display);
     } else if (kps1_in && kps1_in->data && !kps1_in->data->empty()) {
-        std::cout << "[ImageViewer] Drawing keypoints: " << kps1_in->data->size() << " kps.\n";
+        // std::cout << "[ImageViewer] Drawing keypoints: " << kps1_in->data->size() << " kps.\n";
         cv::drawKeypoints(*image1_in->data, *kps1_in->data, img_to_display);
     } else {
         img_to_display = *image1_in->data;
     }
 
-    if (frame_counter % throttle_frames == 0) {
-        update_texture(img_to_display);
-    }
+    update_texture(img_to_display);
 
     frame_counter++;
 }

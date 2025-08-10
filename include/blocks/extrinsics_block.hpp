@@ -19,4 +19,6 @@ private:
     cv::Mat t = cv::Mat::zeros(3, 1, CV_64F);
     std::shared_ptr<data_port<cv::Mat>> output_R;
     std::shared_ptr<data_port<cv::Mat>> output_t;
+
+    int frame_id = 0;
 };

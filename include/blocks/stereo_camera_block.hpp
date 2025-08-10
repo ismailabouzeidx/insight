@@ -22,6 +22,7 @@ private:
     std::string left_folder, right_folder;
     std::vector<std::string> left_images, right_images;
     int index = 0;
+    int frame_id = -1;  // Track current frame id for output consistency
 
     cv::Mat left_img, right_img;
 

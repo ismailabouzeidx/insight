@@ -36,48 +36,50 @@ bool feature_extractor_block::is_port_connected(int port_index, const std::vecto
 void feature_extractor_block::process(const std::vector<link_t>& links) {
     if (!input_image->data || input_image->data->empty()) return;
 
+    int input_frame_id = input_image->frame_id;
+    if (input_frame_id == last_processed_frame_id) {
+        // Already processed this frame, skip redundant work
+        return;
+    }
+    last_processed_frame_id = input_frame_id;
+
     std::vector<cv::KeyPoint> keypoints;
     cv::Mat descriptors;
 
     extractor->detectAndCompute(*input_image->data, cv::noArray(), keypoints, descriptors);
-    std::cout << "Found " << keypoints.size() << " keypoints in image.\n"; 
-    output_keypoints->set(keypoints);
-    output_descriptors->set(descriptors);
+
+    output_keypoints->set(keypoints, input_frame_id);
+    output_descriptors->set(descriptors, input_frame_id);
 
     std::cout << "[FeatureExtractor] Node " << id
-              << " computed " << keypoints.size() << " keypoints.\n";
+              << " computed " << keypoints.size()
+              << " keypoints with frame_id " << input_frame_id << ".\n";
 }
 
 void feature_extractor_block::draw_ui() {
-    std::cout << "[FeatureExtractor] Drawing UI for node " << id << std::endl;
-
     ImNodes::BeginNode(id);
 
     ImNodes::BeginNodeTitleBar();
-    ImGui::TextUnformatted("Feat Extractor");  // shorter title
+    ImGui::TextUnformatted("Feat Extractor");
     ImNodes::EndNodeTitleBar();
 
     int input_attr_id        = id * 100 + 0;
     int descriptors_attr_id  = id * 10 + 0;
     int keypoints_attr_id    = id * 10 + 1;
 
-    // Input: Image
     ImNodes::BeginInputAttribute(input_attr_id);
     ImGui::Text("Img");
     ImGui::Dummy(ImVec2(1, 1));
     ImNodes::EndInputAttribute();
 
-    // Output: Descriptors
     ImNodes::BeginOutputAttribute(descriptors_attr_id);
     ImGui::Text("Desc");
     ImNodes::EndOutputAttribute();
 
-    // Output: Keypoints
     ImNodes::BeginOutputAttribute(keypoints_attr_id);
     ImGui::Text("Kpts");
     ImNodes::EndOutputAttribute();
 
-    // Dropdown: Algorithm
     ImGui::Text("Algo:");
     ImGui::SetNextItemWidth(80);
     const char* current = available_algorithms[algorithm_index].c_str();

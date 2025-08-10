@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(insight LANGUAGES CXX)
+project(insight LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -10,6 +10,10 @@ include_directories(include)
 # Find OpenCV
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
+
+# Find PCL
+find_package(PCL REQUIRED COMPONENTS common io visualization)
+include_directories(${PCL_INCLUDE_DIRS})
 
 # Find nlohmann_json
 find_package(nlohmann_json REQUIRED)
@@ -64,6 +68,7 @@ add_executable(insight ${SOURCES})
 # Link libraries
 target_link_libraries(insight
     ${OpenCV_LIBS}
+    ${PCL_LIBRARIES}
     nlohmann_json::nlohmann_json
     glfw
     OpenGL::GL

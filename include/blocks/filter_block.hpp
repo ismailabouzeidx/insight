@@ -2,12 +2,16 @@
 
 #include "blocks/block.hpp"
 #include "core/data_port.hpp"
-#include <opencv2/core.hpp>
-#include <vector>
 
-class pose_estimator_block : public block {
+#include <opencv2/core.hpp>
+#include <opencv2/features2d.hpp>
+
+#include <vector>
+#include <memory>
+
+class filter_block : public block {
 public:
-    pose_estimator_block(int id);
+    filter_block(int id);
 
     void process(const std::vector<link_t>& links) override;
     void draw_ui() override;
@@ -16,14 +20,14 @@ public:
     std::vector<std::shared_ptr<base_port>> get_output_ports() override;
 
 private:
+    std::shared_ptr<data_port<cv::Mat>> mask_in;
     std::shared_ptr<data_port<std::vector<cv::KeyPoint>>> kpts1_in;
     std::shared_ptr<data_port<std::vector<cv::KeyPoint>>> kpts2_in;
     std::shared_ptr<data_port<std::vector<cv::DMatch>>> matches_in;
-    std::shared_ptr<data_port<cv::Mat>> K_in;
 
-    std::shared_ptr<data_port<cv::Mat>> R_out;
-    std::shared_ptr<data_port<cv::Mat>> t_out;
+    std::shared_ptr<data_port<std::vector<cv::KeyPoint>>> filtered_kpts1_out;
+    std::shared_ptr<data_port<std::vector<cv::KeyPoint>>> filtered_kpts2_out;
+    std::shared_ptr<data_port<std::vector<cv::DMatch>>> filtered_matches_out;
 
-    int frame_id;  // Current frame id for processing
     int last_processed_frame_id = -1;
 };

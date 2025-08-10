@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <iostream>
+#include <cstring>  // For strncpy
 
 namespace fs = std::filesystem;
 
@@ -29,7 +30,7 @@ void monocular_camera_block::load_image_list() {
     }
 
     std::sort(images.begin(), images.end());
-    index = -1;  // So first frame loads 0000
+    index = -1;  // So first frame loads index 0 on first advance
 }
 
 bool monocular_camera_block::is_port_connected(int port_index, const std::vector<link_t>& links) {
@@ -44,7 +45,6 @@ bool monocular_camera_block::is_port_connected(int port_index, const std::vector
 void monocular_camera_block::load_next_frame() {
     if (index + 1 >= images.size()) return;
 
-    // First load: initialize prev and curr
     if (!has_started) {
         curr_image = cv::imread(images[++index], cv::IMREAD_COLOR);
         prev_image = curr_image.clone();  // Set prev = curr at first
@@ -55,13 +55,15 @@ void monocular_camera_block::load_next_frame() {
     }
 
     if (!curr_image.empty()) {
-        output_prev->set(prev_image);
-        output_curr->set(curr_image);
+        output_prev->set(prev_image, index);  // Set frame_id to current index
+        output_curr->set(curr_image, index);
+
+        std::cout << "[Mono Camera] Loaded frame index: " << index 
+                  << ", frame_id set to: " << index << std::endl;
     } else {
         std::cerr << "[Mono Camera] Failed to load image: " << images[index] << std::endl;
     }
 }
-
 
 void monocular_camera_block::process(const std::vector<link_t>& links) {
     if (mode == SequenceMode::AUTO_PLAY) {
@@ -75,7 +77,7 @@ void monocular_camera_block::process(const std::vector<link_t>& links) {
 void monocular_camera_block::draw_ui() {
     ImNodes::BeginNode(id);
     ImNodes::BeginNodeTitleBar();
-    ImGui::TextUnformatted("Mono Cam");  // Shortened title
+    ImGui::TextUnformatted("Mono Cam");
     ImNodes::EndNodeTitleBar();
 
     // Output ports
@@ -87,6 +89,7 @@ void monocular_camera_block::draw_ui() {
     static bool initialized = false;
     if (!initialized) {
         strncpy(folder_buf, folder.c_str(), sizeof(folder_buf));
+        folder_buf[sizeof(folder_buf) - 1] = '\0'; // Ensure null termination
         initialized = true;
     }
 
@@ -100,8 +103,9 @@ void monocular_camera_block::draw_ui() {
         has_started = false;
         prev_image.release();
         curr_image.release();
-        output_prev->set(cv::Mat());
-        output_curr->set(cv::Mat());
+        output_prev->set(cv::Mat(), -1);  // Reset frame_id
+        output_curr->set(cv::Mat(), -1);
+        std::cout << "[Mono Camera] Reset frame_id to -1\n";
     }
 
     // Mode
@@ -125,8 +129,9 @@ void monocular_camera_block::draw_ui() {
         has_started = false;
         prev_image.release();
         curr_image.release();
-        output_prev->set(cv::Mat());
-        output_curr->set(cv::Mat());
+        output_prev->set(cv::Mat(), -1);
+        output_curr->set(cv::Mat(), -1);
+        std::cout << "[Mono Camera] Reset frame_id to -1\n";
     }
 
     ImNodes::EndNode();
