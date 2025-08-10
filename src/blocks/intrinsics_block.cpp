@@ -75,3 +75,42 @@ std::vector<std::shared_ptr<base_port>> intrinsics_block::get_input_ports() {
 std::vector<std::shared_ptr<base_port>> intrinsics_block::get_output_ports() {
     return {output_K, output_D};
 }
+
+nlohmann::json intrinsics_block::serialize() const {
+    nlohmann::json j;
+    
+    // Serialize K matrix
+    j["K"] = nlohmann::json::array();
+    for (int i = 0; i < 3; ++i) {
+        j["K"].push_back(nlohmann::json::array());
+        for (int k = 0; k < 3; ++k) {
+            j["K"][i].push_back(K.at<double>(i, k));
+        }
+    }
+    
+    // Serialize D vector
+    j["D"] = nlohmann::json::array();
+    for (int i = 0; i < 5; ++i) {
+        j["D"].push_back(D.at<double>(i));
+    }
+    
+    return j;
+}
+
+void intrinsics_block::deserialize(const nlohmann::json& j) {
+    // Deserialize K matrix
+    if (j.contains("K") && j["K"].is_array()) {
+        for (int i = 0; i < 3 && i < j["K"].size(); ++i) {
+            for (int k = 0; k < 3 && k < j["K"][i].size(); ++k) {
+                K.at<double>(i, k) = j["K"][i][k];
+            }
+        }
+    }
+    
+    // Deserialize D vector
+    if (j.contains("D") && j["D"].is_array()) {
+        for (int i = 0; i < 5 && i < j["D"].size(); ++i) {
+            D.at<double>(i) = j["D"][i];
+        }
+    }
+}

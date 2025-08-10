@@ -103,3 +103,19 @@ std::vector<std::shared_ptr<base_port>> feature_matcher_block::get_input_ports()
 std::vector<std::shared_ptr<base_port>> feature_matcher_block::get_output_ports() {
     return {matches_out};
 }
+
+nlohmann::json feature_matcher_block::serialize() const {
+    nlohmann::json j;
+    j["matcher_type_index"] = matcher_type_index;
+    j["lowe_ratio"] = lowe_ratio;
+    return j;
+}
+
+void feature_matcher_block::deserialize(const nlohmann::json& j) {
+    if (j.contains("matcher_type_index")) {
+        matcher_type_index = j["matcher_type_index"];
+    }
+    if (j.contains("lowe_ratio")) {
+        lowe_ratio = j["lowe_ratio"];
+    }
+}

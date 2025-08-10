@@ -76,14 +76,20 @@ static void shutdown(GLFWwindow* window) {
     glfwTerminate();
 }
 
-static void render_ui(block_graph& graph, std::vector<link_t>& links, bool& positioned, int& id_counter) {
-    ImGui::Begin("Sidebar", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+static void render_ui(block_graph& graph, bool& positioned, int& id_counter) {
+    // Blocks menu - pinned to left, but shorter to avoid overlap
+    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(200, ImGui::GetIO().DisplaySize.y - 220), ImGuiCond_Once);
+    ImGui::Begin("Blocks", nullptr, 
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+
     ImGui::Text("Add blocks:");
 
     if (ImGui::Button("Stereo Camera")) {
         int id = 1000 + id_counter++;
         auto pos = ImNodes::EditorContextGetPanning() + ImVec2(100, 100);
         graph.add_block(std::make_shared<stereo_camera_block>(id, "image_0", "image_1"));
+        graph.set_block_position(id, pos.x, pos.y);
         pending_node_positions[id] = pos;
     }
 
@@ -91,72 +97,130 @@ static void render_ui(block_graph& graph, std::vector<link_t>& links, bool& posi
         int id = 1000 + id_counter++;
         auto pos = ImNodes::EditorContextGetPanning() + ImVec2(300, 100);
         graph.add_block(std::make_shared<image_viewer_block>(id));
+        graph.set_block_position(id, pos.x, pos.y);
         pending_node_positions[id] = pos;
     }
 
     if (ImGui::Button("Mono Camera")) {
         int id = 1000 + id_counter++;
-        std::string folder = "/home/ismo/Downloads/data_odometry_gray/dataset/sequences/00/image_0/"; // You can leave this blank too
+        std::string folder = "/home/ismo/Downloads/data_odometry_gray/dataset/sequences/00/image_0/";
+        auto pos = ImNodes::EditorContextGetPanning() + ImVec2(600, 100);
         graph.add_block(std::make_shared<monocular_camera_block>(id, folder));
-        pending_node_positions[id] = ImNodes::EditorContextGetPanning() + ImVec2(600, 100);
+        graph.set_block_position(id, pos.x, pos.y);
+        pending_node_positions[id] = pos;
     }
 
     if (ImGui::Button("Feature Extractor")) {
         int id = 1000 + id_counter++;
         auto pos = ImNodes::EditorContextGetPanning() + ImVec2(500, 100);
         graph.add_block(std::make_shared<feature_extractor_block>(id));
+        graph.set_block_position(id, pos.x, pos.y);
         pending_node_positions[id] = pos;
     }
     if (ImGui::Button("Intrinsics")) {
         int id = 1000 + id_counter++;
         auto pos = ImNodes::EditorContextGetPanning() + ImVec2(200, 100);
         graph.add_block(std::make_shared<intrinsics_block>(id));
+        graph.set_block_position(id, pos.x, pos.y);
         pending_node_positions[id] = pos;
     }
     if (ImGui::Button("Extrinsics")) {
         int id = 1000 + id_counter++;
         auto pos = ImNodes::EditorContextGetPanning() + ImVec2(600, 100);
         graph.add_block(std::make_shared<extrinsics_block>(id));
+        graph.set_block_position(id, pos.x, pos.y);
         pending_node_positions[id] = pos;
     }
     if (ImGui::Button("Feature Matcher")) {
         int id = 1000 + id_counter++;
         auto pos = ImNodes::EditorContextGetPanning() + ImVec2(400, 100);
         graph.add_block(std::make_shared<feature_matcher_block>(id));
+        graph.set_block_position(id, pos.x, pos.y);
         pending_node_positions[id] = pos;
     }
     if (ImGui::Button("Pose Estimator")) {
         int id = 1000 + id_counter++;
         auto pos = ImNodes::EditorContextGetPanning() + ImVec2(400, 100);
         graph.add_block(std::make_shared<pose_estimator_block>(id));
+        graph.set_block_position(id, pos.x, pos.y);
         pending_node_positions[id] = pos;
     }
     if (ImGui::Button("Pose Accumulator")) {
         int id = 1000 + id_counter++;
         auto pos = ImNodes::EditorContextGetPanning() + ImVec2(400, 100);
         graph.add_block(std::make_shared<pose_accumulator_block>(id));
+        graph.set_block_position(id, pos.x, pos.y);
         pending_node_positions[id] = pos;
     }
     if (ImGui::Button("Visualizer")) {
         int id = 1000 + id_counter++;
         auto pos = ImNodes::EditorContextGetPanning() + ImVec2(400, 100);
         graph.add_block(std::make_shared<visualizer_block>(id));
+        graph.set_block_position(id, pos.x, pos.y);
         pending_node_positions[id] = pos;
     }
     if (ImGui::Button("Homography Calculator")) {
         int id = 1000 + id_counter++;
         auto pos = ImNodes::EditorContextGetPanning() + ImVec2(400, 100);
         graph.add_block(std::make_shared<homography_block>(id));
+        graph.set_block_position(id, pos.x, pos.y);
         pending_node_positions[id] = pos;
     }
     if (ImGui::Button("Filter Block")) {
         int id = 1000 + id_counter++;
         auto pos = ImNodes::EditorContextGetPanning() + ImVec2(400, 100);
         graph.add_block(std::make_shared<filter_block>(id));
+        graph.set_block_position(id, pos.x, pos.y);
         pending_node_positions[id] = pos;
     }
+
     ImGui::End();
 
+    // Save/Load menu - pinned to left, at the bottom
+    ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetIO().DisplaySize.y - 200), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_Once);
+    ImGui::Begin("File Operations", nullptr, 
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+
+    static char save_file[256] = "my_graph.json";
+    static char load_file[256] = "my_graph.json";
+
+    ImGui::Text("Save/Load Graph:");
+    ImGui::InputText("Save filename", save_file, IM_ARRAYSIZE(save_file));
+    if (ImGui::Button("Save Graph")) {
+        std::string save_path = "graphs/" + std::string(save_file);
+        if (graph.save_graph_to_file(save_path)) {
+            std::cout << "[Main] Graph saved to " << save_path << std::endl;
+        } else {
+            std::cerr << "[Main] Failed to save graph to " << save_path << std::endl;
+        }
+    }
+
+    ImGui::InputText("Load filename", load_file, IM_ARRAYSIZE(load_file));
+    if (ImGui::Button("Load Graph")) {
+        std::string load_path = "graphs/" + std::string(load_file);
+        if (graph.load_graph_from_file(load_path)) {
+            std::cout << "[Main] Graph loaded from " << load_path << std::endl;
+            // After loading, reset id_counter to avoid ID conflicts:
+            int max_id = 0;
+            for (const auto& b : graph.get_blocks()) {
+                if (b->id > max_id) max_id = b->id;
+            }
+            id_counter = max_id + 1;
+            
+            // Set positions for loaded blocks
+            const auto& positions = graph.get_all_positions();
+            for (const auto& [block_id, pos] : positions) {
+                pending_node_positions[block_id] = ImVec2(pos.first, pos.second);
+            }
+        } else {
+            std::cerr << "[Main] Failed to load graph from " << load_path << std::endl;
+        }
+    }
+
+    ImGui::End();
+
+    // Node Editor - takes remaining space
     ImGui::SetNextWindowPos(ImVec2(200, 0), ImGuiCond_Once);
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize - ImVec2(200, 0));
     ImGui::Begin("Node Editor", nullptr,
@@ -167,17 +231,16 @@ static void render_ui(block_graph& graph, std::vector<link_t>& links, bool& posi
 
     graph.draw_all();
 
+    const auto& links = graph.get_links();
     for (const auto& link : links) {
         ImNodes::Link(link.id, link.start_attr, link.end_attr);
     }
 
-    // Apply any pending positions
     for (const auto& [id, pos] : pending_node_positions) {
         ImNodes::SetNodeEditorSpacePos(id, pos);
     }
     pending_node_positions.clear();
 
-    // ✅ Add MiniMap just before EndNodeEditor
     ImNodes::MiniMap(0.2f, ImNodesMiniMapLocation_BottomRight);
 
     ImNodes::EndNodeEditor();
@@ -186,7 +249,8 @@ static void render_ui(block_graph& graph, std::vector<link_t>& links, bool& posi
     // Handle link creation
     int start_attr, end_attr;
     if (ImNodes::IsLinkCreated(&start_attr, &end_attr)) {
-        links.push_back({ id_counter++, start_attr, end_attr });
+        link_t new_link{ id_counter++, start_attr, end_attr };
+        graph.add_link(new_link);
         // std::cout << "[Created] Link: " << start_attr << " -> " << end_attr << std::endl;
     }
 
@@ -202,8 +266,7 @@ static void render_ui(block_graph& graph, std::vector<link_t>& links, bool& posi
 
     if (ImGui::BeginPopup("link_context_menu")) {
         if (ImGui::MenuItem("Delete Link")) {
-            links.erase(std::remove_if(links.begin(), links.end(),
-                [](const link_t& l) { return l.id == context_link_id; }), links.end());
+            graph.remove_link(context_link_id);
             // std::cout << "[Deleted] Link " << context_link_id << std::endl;
         }
         ImGui::EndPopup();
@@ -216,16 +279,12 @@ static void render_ui(block_graph& graph, std::vector<link_t>& links, bool& posi
         ImNodes::GetSelectedNodes(selected_nodes.data());
 
         for (int node_id : selected_nodes) {
-            links.erase(std::remove_if(links.begin(), links.end(),
-                [node_id](const link_t& l) {
-                    return l.start_attr / 10 == node_id || l.end_attr / 10 == node_id;
-                }), links.end());
             graph.remove_block(node_id);
             // std::cout << "[Deleted] Node " << node_id << std::endl;
         }
     }
 
-    graph.process_all(links);
+    graph.process_all();
 }
 
 int main() {
@@ -234,8 +293,7 @@ int main() {
     if (!window) return 1;
 
     block_graph graph;
-    std::vector<link_t> links;
-    int link_id_counter = 1;
+    int id_counter = 1;
     bool positioned = false;
 
     while (!glfwWindowShouldClose(window)) {
@@ -245,7 +303,7 @@ int main() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        render_ui(graph, links, positioned, link_id_counter);
+        render_ui(graph, positioned, id_counter);
 
         ImGui::Render();
         int display_w, display_h;

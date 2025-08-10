@@ -71,9 +71,20 @@ void visualizer_block::draw_ui() {
 }
 
 std::vector<std::shared_ptr<base_port>> visualizer_block::get_input_ports() {
-    return {poses_in, points3d_in};
+    return {poses_in};
 }
 
 std::vector<std::shared_ptr<base_port>> visualizer_block::get_output_ports() {
     return {};
+}
+
+nlohmann::json visualizer_block::serialize() const {
+    nlohmann::json j;
+    // Visualizer doesn't have configurable parameters currently
+    return j;
+}
+
+void visualizer_block::deserialize(const nlohmann::json& j) {
+    // Visualizer doesn't have configurable parameters currently
+    (void)j; // Suppress unused parameter warning
 }

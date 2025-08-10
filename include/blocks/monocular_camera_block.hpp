@@ -21,6 +21,10 @@ public:
     std::vector<std::shared_ptr<base_port>> get_input_ports() override;
     std::vector<std::shared_ptr<base_port>> get_output_ports() override;
 
+    // Serialization
+    nlohmann::json serialize() const override;
+    void deserialize(const nlohmann::json& j) override;
+
 private:
     std::string folder;
     std::vector<std::string> images;

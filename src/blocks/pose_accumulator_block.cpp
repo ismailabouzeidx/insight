@@ -79,3 +79,14 @@ std::vector<std::shared_ptr<base_port>> pose_accumulator_block::get_input_ports(
 std::vector<std::shared_ptr<base_port>> pose_accumulator_block::get_output_ports() {
     return {R_out, t_out, poses_out};
 }
+
+nlohmann::json pose_accumulator_block::serialize() const {
+    nlohmann::json j;
+    // Pose accumulator doesn't have configurable parameters currently
+    return j;
+}
+
+void pose_accumulator_block::deserialize(const nlohmann::json& j) {
+    // Pose accumulator doesn't have configurable parameters currently
+    (void)j; // Suppress unused parameter warning
+}

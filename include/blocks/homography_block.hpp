@@ -15,6 +15,10 @@ public:
     std::vector<std::shared_ptr<base_port>> get_input_ports() override;
     std::vector<std::shared_ptr<base_port>> get_output_ports() override;
 
+    // Serialization
+    nlohmann::json serialize() const override;
+    void deserialize(const nlohmann::json& j) override;
+
 private:
     std::shared_ptr<data_port<std::vector<cv::KeyPoint>>> kpts1_in;
     std::shared_ptr<data_port<std::vector<cv::KeyPoint>>> kpts2_in;
@@ -22,6 +26,7 @@ private:
 
     std::shared_ptr<data_port<cv::Mat>> homography_out; // 3x3 homography matrix
     std::shared_ptr<data_port<cv::Mat>> mask_out;       // inlier mask (uchar)
+    std::shared_ptr<data_port<std::vector<cv::DMatch>>> filtered_matches_out; // filtered matches
 
     int last_processed_frame_id = -1;
     

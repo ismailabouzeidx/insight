@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <memory>
+#include <nlohmann/json.hpp>
 
 class block {
 public:
@@ -21,4 +22,7 @@ public:
     virtual std::vector<std::shared_ptr<base_port>> get_input_ports() = 0;
     virtual std::vector<std::shared_ptr<base_port>> get_output_ports() = 0;
 
+    // Serialization methods
+    virtual nlohmann::json serialize() const = 0;
+    virtual void deserialize(const nlohmann::json& j) = 0;
 };

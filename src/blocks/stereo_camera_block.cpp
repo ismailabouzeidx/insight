@@ -124,9 +124,31 @@ void stereo_camera_block::draw_ui() {
 }
 
 std::vector<std::shared_ptr<base_port>> stereo_camera_block::get_input_ports() {
-    return {};  // No inputs
+    return {};
 }
 
 std::vector<std::shared_ptr<base_port>> stereo_camera_block::get_output_ports() {
     return {left_output, right_output};
+}
+
+nlohmann::json stereo_camera_block::serialize() const {
+    nlohmann::json j;
+    j["left_folder"] = left_folder;
+    j["right_folder"] = right_folder;
+    j["index"] = index;
+    return j;
+}
+
+void stereo_camera_block::deserialize(const nlohmann::json& j) {
+    if (j.contains("left_folder")) {
+        left_folder = j["left_folder"];
+    }
+    if (j.contains("right_folder")) {
+        right_folder = j["right_folder"];
+    }
+    if (j.contains("index")) {
+        index = j["index"];
+    }
+    // Reload image lists after deserializing paths
+    load_image_lists();
 }

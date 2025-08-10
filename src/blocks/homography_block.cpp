@@ -13,6 +13,7 @@ homography_block::homography_block(int id)
 
     homography_out = std::make_shared<data_port<cv::Mat>>("Homography");
     mask_out = std::make_shared<data_port<cv::Mat>>("Mask");
+    filtered_matches_out = std::make_shared<data_port<std::vector<cv::DMatch>>>("Filtered Matches");
 }
 
 void homography_block::process(const std::vector<link_t>&) {
@@ -52,11 +53,23 @@ void homography_block::process(const std::vector<link_t>&) {
         return;
     }
 
+    // Filter matches based on the mask
+    std::vector<cv::DMatch> filtered_matches;
+    for (int i = 0; i < mask.rows; ++i) {
+        if (mask.at<uchar>(i, 0) != 0) {
+            filtered_matches.push_back((*matches)[i]);
+        }
+    }
+
     homography_out->set(H, input_frame_id);
     mask_out->set(mask, input_frame_id);
+    filtered_matches_out->set(filtered_matches, input_frame_id);
 
     std::cout << "[Homography] Computed homography for frame " << input_frame_id
-              << " with " << cv::countNonZero(mask) << " inliers.\n";
+              << " with " << cv::countNonZero(mask) << " inliers."
+              << " Mask size: " << mask.rows << "x" << mask.cols 
+              << " (matches: " << matches->size() << ")"
+              << " Filtered matches: " << filtered_matches.size() << std::endl;
 }
 
 void homography_block::draw_ui() {
@@ -86,6 +99,10 @@ void homography_block::draw_ui() {
     ImGui::Text("Mask");
     ImNodes::EndOutputAttribute();
 
+    ImNodes::BeginOutputAttribute(id * 10 + 2);
+    ImGui::Text("Filtered Matches");
+    ImNodes::EndOutputAttribute();
+
     ImGui::Text("RANSAC Reproj Threshold:");
     ImGui::SetNextItemWidth(80);
     ImGui::SliderFloat("##ransac_thresh", &ransac_reproj_thresh, 1.0f, 10.0f);
@@ -102,5 +119,21 @@ std::vector<std::shared_ptr<base_port>> homography_block::get_input_ports() {
 }
 
 std::vector<std::shared_ptr<base_port>> homography_block::get_output_ports() {
-    return {homography_out, mask_out};
+    return {homography_out, mask_out, filtered_matches_out};
+}
+
+nlohmann::json homography_block::serialize() const {
+    nlohmann::json j;
+    j["ransac_reproj_thresh"] = ransac_reproj_thresh;
+    j["confidence"] = confidence;
+    return j;
+}
+
+void homography_block::deserialize(const nlohmann::json& j) {
+    if (j.contains("ransac_reproj_thresh")) {
+        ransac_reproj_thresh = j["ransac_reproj_thresh"];
+    }
+    if (j.contains("confidence")) {
+        confidence = j["confidence"];
+    }
 }

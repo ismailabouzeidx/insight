@@ -63,9 +63,44 @@ void extrinsics_block::draw_ui() {
 }
 
 std::vector<std::shared_ptr<base_port>> extrinsics_block::get_input_ports() {
-    return {}; // No input
+    return {};
 }
 
 std::vector<std::shared_ptr<base_port>> extrinsics_block::get_output_ports() {
     return {output_R, output_t};
+}
+
+nlohmann::json extrinsics_block::serialize() const {
+    nlohmann::json j;
+    // Serialize R matrix
+    j["R"] = nlohmann::json::array();
+    for (int i = 0; i < 3; ++i) {
+        j["R"].push_back(nlohmann::json::array());
+        for (int k = 0; k < 3; ++k) {
+            j["R"][i].push_back(R.at<double>(i, k));
+        }
+    }
+    // Serialize t vector
+    j["t"] = nlohmann::json::array();
+    for (int i = 0; i < 3; ++i) {
+        j["t"].push_back(t.at<double>(i));
+    }
+    return j;
+}
+
+void extrinsics_block::deserialize(const nlohmann::json& j) {
+    // Deserialize R matrix
+    if (j.contains("R") && j["R"].is_array()) {
+        for (int i = 0; i < 3 && i < j["R"].size(); ++i) {
+            for (int k = 0; k < 3 && k < j["R"][i].size(); ++k) {
+                R.at<double>(i, k) = j["R"][i][k];
+            }
+        }
+    }
+    // Deserialize t vector
+    if (j.contains("t") && j["t"].is_array()) {
+        for (int i = 0; i < 3 && i < j["t"].size(); ++i) {
+            t.at<double>(i) = j["t"][i];
+        }
+    }
 }

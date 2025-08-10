@@ -14,6 +14,10 @@ public:
     std::vector<std::shared_ptr<base_port>> get_input_ports() override;
     std::vector<std::shared_ptr<base_port>> get_output_ports() override;
 
+    // Serialization
+    nlohmann::json serialize() const override;
+    void deserialize(const nlohmann::json& j) override;
+
 private:
     cv::Mat K = cv::Mat::eye(3, 3, CV_64F);
     cv::Mat D = cv::Mat::zeros(5, 1, CV_64F);

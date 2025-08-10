@@ -112,3 +112,14 @@ std::vector<std::shared_ptr<base_port>> pose_estimator_block::get_input_ports() 
 std::vector<std::shared_ptr<base_port>> pose_estimator_block::get_output_ports() {
     return {R_out, t_out};
 }
+
+nlohmann::json pose_estimator_block::serialize() const {
+    nlohmann::json j;
+    // Pose estimator doesn't have configurable parameters currently
+    return j;
+}
+
+void pose_estimator_block::deserialize(const nlohmann::json& j) {
+    // Pose estimator doesn't have configurable parameters currently
+    (void)j; // Suppress unused parameter warning
+}

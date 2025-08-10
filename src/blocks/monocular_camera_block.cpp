@@ -144,3 +144,20 @@ std::vector<std::shared_ptr<base_port>> monocular_camera_block::get_input_ports(
 std::vector<std::shared_ptr<base_port>> monocular_camera_block::get_output_ports() {
     return {output_prev, output_curr};
 }
+
+nlohmann::json monocular_camera_block::serialize() const {
+    nlohmann::json j;
+    j["folder"] = folder;
+    j["index"] = index;
+    return j;
+}
+
+void monocular_camera_block::deserialize(const nlohmann::json& j) {
+    if (j.contains("folder")) {
+        folder = j["folder"];
+    }
+    if (j.contains("index")) {
+        index = j["index"];
+    }
+    load_image_list();
+}

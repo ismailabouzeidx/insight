@@ -104,5 +104,27 @@ std::vector<std::shared_ptr<base_port>> feature_extractor_block::get_input_ports
 }
 
 std::vector<std::shared_ptr<base_port>> feature_extractor_block::get_output_ports() {
-    return {output_descriptors, output_keypoints};  // descriptors = 0, keypoints = 1
+    return {output_descriptors, output_keypoints};
+}
+
+nlohmann::json feature_extractor_block::serialize() const {
+    nlohmann::json j;
+    j["algorithm"] = algorithm;
+    j["algorithm_index"] = algorithm_index;
+    return j;
+}
+
+void feature_extractor_block::deserialize(const nlohmann::json& j) {
+    if (j.contains("algorithm")) {
+        algorithm = j["algorithm"];
+    }
+    if (j.contains("algorithm_index")) {
+        algorithm_index = j["algorithm_index"];
+        // Ensure algorithm_index is within bounds
+        if (algorithm_index >= 0 && algorithm_index < available_algorithms.size()) {
+            algorithm = available_algorithms[algorithm_index];
+        }
+    }
+    // Recreate the extractor with the loaded settings
+    create_extractor();
 }

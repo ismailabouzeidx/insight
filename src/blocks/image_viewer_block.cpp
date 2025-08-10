@@ -79,6 +79,17 @@ std::vector<std::shared_ptr<base_port>> image_viewer_block::get_output_ports() {
     return {};
 }
 
+nlohmann::json image_viewer_block::serialize() const {
+    nlohmann::json j;
+    // Image viewer doesn't have configurable parameters
+    return j;
+}
+
+void image_viewer_block::deserialize(const nlohmann::json& j) {
+    // Image viewer doesn't have configurable parameters
+    (void)j; // Suppress unused parameter warning
+}
+
 void image_viewer_block::update_texture(const cv::Mat& img) {
     if (texture_id) cleanup_texture();
     if (img.empty()) {
